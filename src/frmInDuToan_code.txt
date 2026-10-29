@@ -1,0 +1,802 @@
+Option Explicit
+
+' ============================================================================
+'  frmInDuToan - giao dien duy nhat cua tool in an du toan (V6.1)
+'  Bo cuc do BuildInAnForm tao; code nay chi xu ly su kien.
+'  Moi viec in deu goi API_... trong module inanDTG8_V6.
+'  Form chay MODELESS: dang mo van lam viec voi cac cua so Excel khac.
+' ============================================================================
+
+Private mBtns As Collection           ' clsInAnBtn cho cac nut gia + ten hang muc
+Private mWbs As Collection            ' workbook tuong ung tung dong cboFile
+Private mNHM As Integer               ' so hang muc cua file dang chon (0 = 1 hang muc)
+Private mFound As Integer             ' so sheet du toan tim thay
+Private mEx1() As Boolean, mEx2() As Boolean
+Private mCurWb As Workbook            ' workbook da nhan dien
+Private mFiles As Variant, mNFiles As Long
+Private mBusy As Boolean, mStop As Boolean
+Private mHover As String
+Private mLoading As Boolean
+Private mLog As String
+
+Private Const BTN_LIST As String = "btnOpenFile,btnRefresh,btnFolder,btnAll,btnNone,btn5,btnOut,btnOutClr,btnAlign,btnPreview,btnPrint,btnPDF,btnClose"
+Private Const ROWS_MAX As Integer = 20
+Private Const ROW_H As Single = 20
+
+' ============================================================================
+'  KHOI DONG
+' ============================================================================
+Private Sub UserForm_Initialize()
+    Dim v As Variant, r As Integer
+    Set mBtns = New Collection
+    For Each v In Split(BTN_LIST, ",")
+        WireBtn CStr(v), Me.Controls(CStr(v))
+        WireBtn CStr(v), Me.Controls(CStr(v) & "_t")
+    Next v
+    For r = 1 To ROWS_MAX
+        WireBtn "row:" & r, Me.fraHM.Controls("lblH_" & r)
+    Next r
+    ReDim mEx1(1 To 8): ReDim mEx2(1 To 6)
+
+    Dim i As Integer
+    For i = 1 To 8: Me.Controls("lbl1_" & i).Caption = Name1(i): Next i
+
+    mLoading = True
+    LoadSettings
+    mLoading = False
+
+    FillWorkbookList True
+    If Me.cboFile.ListCount = 0 And Len(Me.txtFolder.Text) > 0 Then Me.optFolder.Value = True
+    If Not Me.optFolder.Value Then Me.optFile.Value = True
+    ScanFolder
+    RefreshMode
+    AppendLog "Sẵn sàng. Form không khoá Excel: vẫn mở / sửa file khác được, bấm 'Làm mới' để cập nhật danh sách."
+End Sub
+
+Private Sub WireBtn(nm As String, ctl As Object)
+    Dim b As clsInAnBtn
+    Set b = New clsInAnBtn
+    Set b.L = ctl
+    b.Nm = nm
+    Set b.Host = Me
+    mBtns.Add b
+End Sub
+
+Private Function Name1(i As Integer) As String
+    Select Case i
+        Case 1: Name1 = "THKP hạng mục   [Ngang]"
+        Case 2: Name1 = "Giá tổng hợp   [Ngang]"
+        Case 3: Name1 = "Đơn giá chi tiết   [Dọc]"
+        Case 4: Name1 = "Công trình   [Dọc]"
+        Case 5: Name1 = "Giá tháng   [Dọc]"
+        Case 6: Name1 = "Tổng hợp vật tư   [Dọc]"
+        Case 7: Name1 = "TH chi phí XD   [Dọc]"
+        Case 8: Name1 = "TH chi phí TB   [Ngang]"
+    End Select
+End Function
+
+Private Function Name2(k As Integer) As String
+    Select Case k
+        Case 1: Name2 = "THKP"
+        Case 2: Name2 = "Giá tổng hợp"
+        Case 3: Name2 = "Đơn giá CT"
+        Case 4: Name2 = "Công trình"
+        Case 5: Name2 = "Giá tháng"
+        Case 6: Name2 = "TH chi phí TB"
+    End Select
+End Function
+
+Private Function HChk(r As Integer, k As Integer) As Object
+    Set HChk = Me.fraHM.Controls("chkH_" & r & "_" & k)
+End Function
+
+' ============================================================================
+'  CAU HINH (luu trong registry nguoi dung)
+' ============================================================================
+Private Sub LoadSettings()
+    Dim i As Integer
+    For i = 1 To 8
+        Me.Controls("chk1_" & i).Value = (CfgGet("c1_" & i, IIf(i <= 5 Or i = 8, "1", "0")) = "1")
+        Me.Controls("txt1_" & i).Text = CfgGet("t1_" & i, CStr(i))
+    Next i
+    For i = 1 To 6
+        Me.Controls("chkM_" & i).Value = (CfgGet("tpl_" & i, "1") = "1")
+        Me.Controls("txtN_" & i).Text = CfgGet("tN_" & i, CStr(i))
+    Next i
+    Me.chkTong.Value = (CfgGet("tong", "1") = "1")
+    Me.chkOpen.Value = (CfgGet("open", "1") = "1")
+    Me.chkSub.Value = (CfgGet("sub", "0") = "1")
+    Me.chkTenHM.Value = (CfgGet("tenhm", "0") = "1")
+    Me.txtOut.Text = CfgGet("out", "")
+    Me.txtFolder.Text = CfgGet("folder", "")
+    If CfgGet("xk", "TACH") = "GHEP" Then Me.optGhep.Value = True Else Me.optTach.Value = True
+End Sub
+
+Private Sub SaveSettings()
+    Dim i As Integer
+    ' Dong bi mo (sheet khong co trong file dang chon) giu nguyen gia tri da luu
+    For i = 1 To 8
+        If Me.Controls("chk1_" & i).Enabled Then
+            CfgSet "c1_" & i, IIf(Me.Controls("chk1_" & i).Value, "1", "0")
+            CfgSet "t1_" & i, Trim$(Me.Controls("txt1_" & i).Text)
+        End If
+    Next i
+    For i = 1 To 6
+        If Me.Controls("chkM_" & i).Enabled Then
+            CfgSet "tpl_" & i, IIf(Me.Controls("chkM_" & i).Value, "1", "0")
+            CfgSet "tN_" & i, Trim$(Me.Controls("txtN_" & i).Text)
+        End If
+    Next i
+    CfgSet "tong", IIf(Me.chkTong.Value, "1", "0")
+    CfgSet "open", IIf(Me.chkOpen.Value, "1", "0")
+    CfgSet "sub", IIf(Me.chkSub.Value, "1", "0")
+    CfgSet "tenhm", IIf(Me.chkTenHM.Value, "1", "0")
+    CfgSet "out", Trim$(Me.txtOut.Text)
+    CfgSet "folder", Trim$(Me.txtFolder.Text)
+    CfgSet "xk", IIf(Me.optGhep.Value, "GHEP", "TACH")
+End Sub
+
+' ============================================================================
+'  NGUON: FILE DANG MO / THU MUC
+' ============================================================================
+' preferActive = True: chon workbook dang active (neu co trong danh sach)
+Private Sub FillWorkbookList(Optional preferActive As Boolean = False)
+    Dim wb As Workbook, keep As Workbook, pick As Integer
+    Set keep = CurWb()
+    mLoading = True
+    Me.cboFile.Clear
+    Set mWbs = New Collection
+    pick = -1
+    For Each wb In Application.Workbooks
+        If Not (wb Is ThisWorkbook) And Not wb.IsAddin Then
+            If WbVisible(wb) Then
+                Me.cboFile.AddItem wb.Name
+                mWbs.Add wb
+                If preferActive Or keep Is Nothing Then
+                    If wb Is ActiveWorkbook Then pick = Me.cboFile.ListCount - 1
+                ElseIf wb Is keep Then
+                    pick = Me.cboFile.ListCount - 1
+                End If
+            End If
+        End If
+    Next wb
+    If pick < 0 And Me.cboFile.ListCount > 0 Then pick = 0
+    If pick >= 0 Then Me.cboFile.ListIndex = pick
+    mLoading = False
+    ' Chi nhan dien lai khi doi sang workbook khac (nhan dien file lon ton thoi gian)
+    If Not (CurWb() Is mCurWb) Or mCurWb Is Nothing Then
+        DetectCurrent
+        RefreshMode
+    End If
+End Sub
+
+Private Function WbVisible(wb As Workbook) As Boolean
+    Dim w As Window
+    On Error Resume Next
+    For Each w In wb.Windows
+        If w.Visible Then WbVisible = True: Exit Function
+    Next w
+End Function
+
+Private Function CurWb() As Workbook
+    If Me.cboFile.ListIndex < 0 Then Exit Function
+    On Error Resume Next
+    Set CurWb = mWbs(Me.cboFile.ListIndex + 1)
+    If Not CurWb Is Nothing Then
+        If Len(CurWb.Name) = 0 Then Set CurWb = Nothing   ' workbook da dong
+    End If
+    On Error GoTo 0
+End Function
+
+' Mo danh sach -> cap nhat file dang mo (form modeless: nguoi dung co the da mo/dong file)
+Private Sub cboFile_DropButtonClick()
+    If mLoading Or mBusy Then Exit Sub
+    FillWorkbookList
+End Sub
+
+Private Sub cboFile_Change()
+    If mLoading Then Exit Sub
+    If Not Me.optFile.Value Then
+        mLoading = True: Me.optFile.Value = True: mLoading = False
+    End If
+    DetectCurrent
+    RefreshMode
+End Sub
+
+Private Sub optFile_Click()
+    If mLoading Then Exit Sub
+    DetectCurrent
+    RefreshMode
+End Sub
+
+Private Sub optFolder_Click()
+    If mLoading Then Exit Sub
+    ScanFolder
+    RefreshMode
+End Sub
+
+Private Sub chkSub_Click()
+    If mLoading Then Exit Sub
+    ScanFolder
+    RefreshMode
+End Sub
+
+Private Sub DetectCurrent()
+    Dim wb As Workbook, names() As String, r As Integer
+    mFound = 0: mNHM = 0
+    ReDim mEx1(1 To 8): ReDim mEx2(1 To 6)
+    Set wb = CurWb()
+    Set mCurWb = wb
+    If Not wb Is Nothing Then
+        Application.Cursor = xlWait
+        mFound = API_Detect(wb, mNHM, names, mEx1, mEx2)
+        Application.Cursor = xlDefault
+    End If
+    ' dong hang muc
+    mLoading = True
+    For r = 1 To ROWS_MAX
+        If r <= mNHM Then
+            Me.fraHM.Controls("lblH_" & r).Caption = r & ".  " & names(r)
+            Me.fraHM.Controls("lblH_" & r).ControlTipText = names(r)
+        End If
+    Next r
+    ApplyMasterToRows
+    mLoading = False
+End Sub
+
+Private Sub ScanFolder()
+    mNFiles = 0
+    mFiles = Empty
+    Dim f As String: f = Trim$(Me.txtFolder.Text)
+    If Len(f) = 0 Then Exit Sub
+    mFiles = API_CollectFiles(f, CBool(Me.chkSub.Value), mNFiles)
+End Sub
+
+' ============================================================================
+'  LUOI HANG MUC x SHEET
+' ============================================================================
+' Dat lai moi dong theo dong "Tat ca hang muc":
+'   sheet tach khoi -> moi hang muc ; Gia thang -> hang muc CUOI ; TH chi phi TB -> hang muc DAU
+Private Sub ApplyMasterToRows(Optional onlyCol As Integer = 0)
+    Dim r As Integer, k As Integer, v As Boolean
+    For k = 1 To 6
+        If onlyCol = 0 Or onlyCol = k Then
+            For r = 1 To mNHM
+                v = Me.Controls("chkM_" & k).Value
+                If k = 5 Then v = v And (r = mNHM)
+                If k = 6 Then v = v And (r = 1)
+                HChk(r, k).Value = v
+            Next r
+        End If
+    Next k
+End Sub
+
+Private Sub chkM_1_Click(): MasterClick 1: End Sub
+Private Sub chkM_2_Click(): MasterClick 2: End Sub
+Private Sub chkM_3_Click(): MasterClick 3: End Sub
+Private Sub chkM_4_Click(): MasterClick 4: End Sub
+Private Sub chkM_5_Click(): MasterClick 5: End Sub
+Private Sub chkM_6_Click(): MasterClick 6: End Sub
+
+Private Sub MasterClick(k As Integer)
+    If mLoading Then Exit Sub
+    mLoading = True
+    ApplyMasterToRows k
+    mLoading = False
+End Sub
+
+' Bam ten hang muc: dang co sheet tick -> bo het ; dang trong -> tick theo dong mau
+Private Sub ToggleRow(r As Integer)
+    If r > mNHM Then Exit Sub
+    Dim k As Integer, anyOn As Boolean
+    For k = 1 To 6
+        If HChk(r, k).Enabled And HChk(r, k).Value Then anyOn = True
+    Next k
+    Dim v As Boolean
+    For k = 1 To 6
+        If HChk(r, k).Enabled Then
+            v = Me.Controls("chkM_" & k).Value And Not anyOn
+            If k = 5 Then v = v And (r = mNHM)
+            If k = 6 Then v = v And (r = 1)
+            HChk(r, k).Value = v
+        End If
+    Next k
+End Sub
+
+' ============================================================================
+'  TRANG THAI GIAO DIEN THEO CHE DO
+' ============================================================================
+Private Sub RefreshMode()
+    Dim folderMode As Boolean: folderMode = Me.optFolder.Value
+    Dim i As Integer, r As Integer, k As Integer, on1 As Boolean, onN As Boolean
+
+    If folderMode Then
+        on1 = True: onN = True
+        If Len(Trim$(Me.txtFolder.Text)) = 0 Then
+            SetDetect "Chưa chọn thư mục.", ClrTextDim()
+        ElseIf mNFiles = 0 Then
+            SetDetect "Không có file Excel nào trong thư mục này.", ClrRed()
+        Else
+            SetDetect "Thư mục: " & mNFiles & " file Excel  —  mỗi file tự nhận diện 1 hay nhiều hạng mục.", ClrGreen()
+        End If
+    Else
+        If CurWb() Is Nothing Then
+            SetDetect "Không có file nào đang mở. Bấm 'Mở file...' hoặc chọn 'Cả thư mục'.", ClrTextDim()
+        ElseIf mFound = 0 Then
+            SetDetect "Không nhận ra sheet dự toán G8 / ESCON trong file này.", ClrRed()
+        ElseIf mNHM >= 2 Then
+            onN = True
+            SetDetect "Nhận diện: " & mNHM & " HẠNG MỤC  —  tìm thấy " & mFound & "/6 sheet.", ClrGreen()
+        Else
+            on1 = True
+            SetDetect "Nhận diện: 1 HẠNG MỤC  —  tìm thấy " & mFound & "/8 sheet.", ClrOrange()
+        End If
+    End If
+
+    ' panel 1 hang muc
+    Me.lblP1.ForeColor = IIf(on1, ClrOrange(), ClrTextOff())
+    For i = 1 To 8
+        Dim r1 As Boolean: r1 = on1
+        If on1 And Not folderMode Then r1 = mEx1(i)
+        Me.Controls("chk1_" & i).Enabled = r1
+        Me.Controls("txt1_" & i).Enabled = r1
+        Me.Controls("lbl1_" & i).ForeColor = IIf(r1, ClrText(), ClrTextOff())
+        Me.Controls("lbl1_" & i).Caption = Name1(i) & IIf(on1 And Not r1, "   (không có)", "")
+    Next i
+    SetBtn "btnAll", on1: SetBtn "btnNone", on1: SetBtn "btn5", on1
+
+    ' panel nhieu hang muc
+    Me.lblP2.ForeColor = IIf(onN, ClrGreen(), ClrTextOff())
+    Me.lblP2.Caption = IIf(onN And Not folderMode, mNHM & " HẠNG MỤC  —  tick sheet cho từng hạng mục", _
+                                                   "NHIỀU HẠNG MỤC  —  tick sheet cho từng hạng mục")
+    Me.lblMaster.Caption = IIf(folderMode, "Mẫu cho mọi file", "Tất cả hạng mục")
+    Me.lblMaster.ForeColor = IIf(onN, ClrText(), ClrTextOff())
+    For k = 1 To 6
+        Dim colOn As Boolean: colOn = onN
+        If onN And Not folderMode Then colOn = mEx2(k)
+        Me.Controls("chkM_" & k).Enabled = colOn
+        Me.Controls("txtN_" & k).Enabled = colOn
+        Me.Controls("lblC2_" & k).ForeColor = IIf(colOn, ClrTextDim(), ClrTextOff())
+    Next k
+
+    Dim nRows As Integer
+    If onN And Not folderMode Then nRows = mNHM
+    For r = 1 To ROWS_MAX
+        Dim vis As Boolean: vis = (r <= nRows)
+        Me.fraHM.Controls("lblH_" & r).Visible = vis
+        If r Mod 2 = 0 Then Me.fraHM.Controls("rowH_" & r).Visible = vis
+        For k = 1 To 6
+            HChk(r, k).Visible = vis
+            HChk(r, k).Enabled = vis And mEx2(k)
+        Next k
+    Next r
+    Me.fraHM.Controls("lblFolderNote").Visible = folderMode
+    Me.fraHM.ScrollHeight = IIf(nRows * ROW_H > Me.fraHM.Height, nRows * ROW_H + 2, Me.fraHM.Height)
+    Me.fraHM.ScrollTop = 0
+
+    SetOpt "optTach", onN: SetOpt "optGhep", onN
+    SetOpt "chkTenHM", onN And Me.optTach.Value
+
+    ' nut thao tac
+    Dim canRun As Boolean, isN As Boolean
+    isN = (mNHM >= 2)
+    If folderMode Then canRun = (mNFiles > 0) Else canRun = (mFound > 0)
+    SetBtn "btnAlign", canRun And Not folderMode And Not isN
+    SetBtn "btnPreview", canRun And Not folderMode And Not isN
+    SetBtn "btnPrint", canRun And (folderMode Or Not isN)
+    SetBtn "btnPDF", canRun
+    If folderMode And mNFiles > 0 Then
+        Me.btnPDF_t.Caption = "XUẤT PDF  (" & mNFiles & " file)"
+    ElseIf Not folderMode And isN Then
+        Me.btnPDF_t.Caption = IIf(Me.optGhep.Value, "XUẤT PDF  (ghép 1 file)", "XUẤT PDF  (mỗi HM 1 file)")
+    Else
+        Me.btnPDF_t.Caption = "XUẤT PDF"
+    End If
+End Sub
+
+Private Sub optTach_Click()
+    If Not mLoading Then RefreshMode
+End Sub
+
+Private Sub optGhep_Click()
+    If Not mLoading Then RefreshMode
+End Sub
+
+Private Sub SetOpt(nm As String, en As Boolean)
+    Me.Controls(nm).Enabled = en
+    Me.Controls(nm).ForeColor = IIf(en, ClrText(), ClrTextOff())
+End Sub
+
+Private Sub SetDetect(s As String, clr As Long)
+    Me.lblDetect.Caption = s
+    Me.lblDetect.ForeColor = clr
+End Sub
+
+' Nut gia: Tag "1" = dung duoc, "0" = mo
+Private Sub SetBtn(nm As String, en As Boolean)
+    Me.Controls(nm).Tag = IIf(en, "1", "0")
+    Me.Controls(nm).BackColor = IIf(en, BaseColor(nm), ClrBtnOff())
+    If nm = "btnPDF" Then
+        Me.Controls(nm & "_t").ForeColor = IIf(en, ClrOnOrange(), ClrTextOff())
+    Else
+        Me.Controls(nm & "_t").ForeColor = IIf(en, ClrText(), ClrTextOff())
+    End If
+End Sub
+
+Private Function BaseColor(nm As String) As Long
+    Select Case nm
+        Case "btnPDF": BaseColor = ClrOrange()
+        Case "btnClose": BaseColor = ClrBtnCancel()
+        Case Else: BaseColor = ClrBtnGray()
+    End Select
+End Function
+
+Private Function HoverColor(nm As String) As Long
+    Select Case nm
+        Case "btnPDF": HoverColor = ClrOrangeHover()
+        Case "btnClose": HoverColor = ClrBtnCancelHover()
+        Case Else: HoverColor = ClrBtnGrayHover()
+    End Select
+End Function
+
+' ============================================================================
+'  HOVER (goi tu clsInAnBtn)
+' ============================================================================
+Public Sub OnHover(nm As String)
+    If Left$(nm, 4) = "row:" Then ResetHover: Exit Sub
+    If mHover = nm Then Exit Sub
+    ResetHover
+    If Me.Controls(nm).Tag = "1" Then
+        Me.Controls(nm).BackColor = HoverColor(nm)
+        mHover = nm
+    End If
+End Sub
+
+Private Sub ResetHover()
+    If Len(mHover) = 0 Then Exit Sub
+    If Me.Controls(mHover).Tag = "1" Then Me.Controls(mHover).BackColor = BaseColor(mHover)
+    mHover = ""
+End Sub
+
+Private Sub UserForm_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    ResetHover
+End Sub
+
+Private Sub pnl1_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    ResetHover
+End Sub
+
+Private Sub pnl2_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    ResetHover
+End Sub
+
+Private Sub fraHM_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    ResetHover
+End Sub
+
+Private Sub lblHdr_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    ResetHover
+End Sub
+
+Private Sub lblDetect_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    ResetHover
+End Sub
+
+' Bam vao ten sheet 1 hang muc = bat/tat o tick
+Private Sub lbl1_1_Click(): Toggle1 1: End Sub
+Private Sub lbl1_2_Click(): Toggle1 2: End Sub
+Private Sub lbl1_3_Click(): Toggle1 3: End Sub
+Private Sub lbl1_4_Click(): Toggle1 4: End Sub
+Private Sub lbl1_5_Click(): Toggle1 5: End Sub
+Private Sub lbl1_6_Click(): Toggle1 6: End Sub
+Private Sub lbl1_7_Click(): Toggle1 7: End Sub
+Private Sub lbl1_8_Click(): Toggle1 8: End Sub
+
+Private Sub Toggle1(i As Integer)
+    With Me.Controls("chk1_" & i)
+        If .Enabled Then .Value = Not .Value
+    End With
+End Sub
+
+' ============================================================================
+'  NUT BAM (goi tu clsInAnBtn)
+' ============================================================================
+Public Sub OnBtn(nm As String)
+    If mBusy Then
+        If nm = "btnClose" Then mStop = True: AppendLog "Đang dừng sau file hiện tại..."
+        Exit Sub
+    End If
+    If Left$(nm, 4) = "row:" Then ToggleRow CInt(Mid$(nm, 5)): Exit Sub
+    If Me.Controls(nm).Tag <> "1" Then Exit Sub
+
+    Select Case nm
+        Case "btnOpenFile": DoOpenFile
+        Case "btnRefresh":  FillWorkbookList True: ScanFolder: RefreshMode
+        Case "btnFolder":   DoPickFolder
+        Case "btnAll":      SetAll1 0
+        Case "btnNone":     SetAll1 -1
+        Case "btn5":        SetAll1 5
+        Case "btnOut":      DoPickOut
+        Case "btnOutClr":   Me.txtOut.Text = ""
+        Case "btnAlign":    DoRun "ALIGN"
+        Case "btnPreview":  DoRun "PREVIEW"
+        Case "btnPrint":    DoRun "PRINT"
+        Case "btnPDF":      DoRun "PDF"
+        Case "btnClose":    CloseForm
+    End Select
+End Sub
+
+Private Sub CloseForm()
+    SaveSettings
+    Set modInAnMain.gFrm = Nothing
+    Unload Me
+End Sub
+
+' mode: 0 = tat ca, -1 = bo het, 5 = 5 sheet chinh
+Private Sub SetAll1(mode As Integer)
+    Dim i As Integer
+    For i = 1 To 8
+        With Me.Controls("chk1_" & i)
+            If .Enabled Then
+                Select Case mode
+                    Case 0: .Value = True
+                    Case -1: .Value = False
+                    Case Else: .Value = (i <= 5)
+                End Select
+            End If
+        End With
+    Next i
+End Sub
+
+Private Sub DoOpenFile()
+    Dim p As Variant, wb As Workbook, w As Workbook
+    p = Application.GetOpenFilename("Excel (*.xls;*.xlsx;*.xlsm),*.xls;*.xlsx;*.xlsm", , _
+                                    "Chọn file dự toán", , False)
+    If VarType(p) = vbBoolean Then Exit Sub
+    For Each w In Application.Workbooks
+        If StrComp(w.FullName, CStr(p), vbTextCompare) = 0 Then Set wb = w: Exit For
+    Next w
+    If wb Is Nothing Then
+        On Error Resume Next
+        Set wb = Workbooks.Open(CStr(p), UpdateLinks:=0)
+        On Error GoTo 0
+    End If
+    If wb Is Nothing Then AppendLog "Không mở được: " & CStr(p): Exit Sub
+    wb.Activate
+    mLoading = True: Me.optFile.Value = True: mLoading = False
+    FillWorkbookList True
+    AppendLog "Đã mở: " & wb.Name
+End Sub
+
+Private Function PickFolder(title As String, start As String) As String
+    Dim fd As Object
+    Set fd = Application.FileDialog(4)          ' msoFileDialogFolderPicker
+    fd.Title = title
+    fd.AllowMultiSelect = False
+    If Len(start) > 0 Then fd.InitialFileName = start & IIf(Right$(start, 1) = "\", "", "\")
+    If fd.Show = -1 Then PickFolder = fd.SelectedItems(1)
+End Function
+
+Private Sub DoPickFolder()
+    Dim f As String
+    f = PickFolder("Chọn thư mục chứa các file dự toán", Trim$(Me.txtFolder.Text))
+    If Len(f) = 0 Then Exit Sub
+    Me.txtFolder.Text = f
+    mLoading = True: Me.optFolder.Value = True: mLoading = False
+    ScanFolder
+    RefreshMode
+End Sub
+
+Private Sub DoPickOut()
+    Dim f As String
+    f = PickFolder("Chọn thư mục lưu PDF", Trim$(Me.txtOut.Text))
+    If Len(f) > 0 Then Me.txtOut.Text = f
+End Sub
+
+' ============================================================================
+'  CHAY
+' ============================================================================
+Private Function Harvest() As Boolean
+    Harvest = False
+    Dim i As Integer, k As Integer, r As Integer, t As String
+    For i = 1 To 8
+        gSelSheet(i) = Me.Controls("chk1_" & i).Value And Me.Controls("chk1_" & i).Enabled
+        gOrder(i) = ReadTT(Me.Controls("txt1_" & i))
+    Next i
+    For k = 1 To 6
+        gTplSel(k) = Me.Controls("chkM_" & k).Value
+        gOrderN(k) = ReadTT(Me.Controls("txtN_" & k))
+        For r = 1 To MAX_HM
+            gSelN(k, r) = False
+            If r <= mNHM And r <= ROWS_MAX Then gSelN(k, r) = HChk(r, k).Value And HChk(r, k).Enabled
+        Next r
+    Next k
+    gGiaTongHopInTongCong = Me.chkTong.Value
+    gGTH_InTongCong2 = Me.chkTong.Value
+    gHM_XuatKieu = IIf(Me.optGhep.Value, "GHEP", "TACH")
+    gHM_TenTheoHM = Me.chkTenHM.Value
+
+    t = Trim$(Me.txtOut.Text)
+    If Len(t) > 0 Then
+        If Not CreateObject("Scripting.FileSystemObject").FolderExists(t) Then
+            AppendLog "Thư mục lưu PDF không tồn tại: " & t
+            Exit Function
+        End If
+    End If
+    gOutFolder1 = t
+    gHM_OutFolder = t
+    Harvest = True
+End Function
+
+' So thu tu: rong / sai -> 99 (xep cuoi)
+Private Function ReadTT(c As Object) As Integer
+    Dim t As String: t = Trim$(c.Text)
+    If Len(t) > 0 And IsNumeric(t) Then
+        ReadTT = CInt(Val(t))
+        If ReadTT < 1 Then ReadTT = 99
+    Else
+        ReadTT = 99
+    End If
+End Function
+
+Private Function Count1() As Integer
+    Dim i As Integer
+    For i = 1 To 8
+        If gSelSheet(i) Then Count1 = Count1 + 1
+    Next i
+End Function
+
+Private Function CountN() As Integer
+    Dim k As Integer, r As Integer
+    For r = 1 To mNHM
+        For k = 1 To 6
+            If gSelN(k, r) Then CountN = CountN + 1
+        Next k
+    Next r
+End Function
+
+Private Sub DoRun(act As String)
+    If Not Harvest() Then Exit Sub
+    SaveSettings
+
+    If Me.optFolder.Value Then
+        RunFolder act = "PDF"
+        Exit Sub
+    End If
+
+    Dim wb As Workbook: Set wb = CurWb()
+    If wb Is Nothing Then AppendLog "Chưa chọn file (hoặc file đã đóng) — bấm Làm mới.": Exit Sub
+
+    ' Form modeless: file co the da bi sua tu luc nhan dien -> nhan dien lai, so khop so hang muc
+    Dim nHM As Integer, names() As String, e1() As Boolean, e2() As Boolean
+    If API_Detect(wb, nHM, names, e1, e2) = 0 Or nHM <> mNHM Then
+        AppendLog "File đã thay đổi so với lúc nhận diện — đã nhận diện lại, kiểm tra rồi bấm lại."
+        DetectCurrent: RefreshMode
+        Exit Sub
+    End If
+
+    If mNHM >= 2 Then
+        If CountN() = 0 Then AppendLog "Chưa tick sheet nào cho hạng mục nào.": Exit Sub
+    Else
+        If Count1() = 0 Then AppendLog "Chưa tick sheet nào để in.": Exit Sub
+    End If
+
+    Dim msg As String, ok As Boolean
+    If act = "PREVIEW" Then
+        ' Xem truoc can giao dien Excel: an form, xem, roi hien lai
+        Me.Hide
+        ok = API_Run1HM(wb, "PREVIEW", msg)
+        Me.Show vbModeless
+        If Not ok Then AppendLog "LỖI  " & wb.Name & "  —  " & msg
+        Exit Sub
+    End If
+
+    BeginBusy "Đang xử lý " & wb.Name & " ..."
+    If mNHM >= 2 Then
+        ok = API_RunNHM(wb, msg)
+    Else
+        ok = API_Run1HM(wb, act, msg)
+    End If
+    EndBusy
+    AppendLog IIf(ok, "OK  ", "LỖI  ") & wb.Name & "  —  " & msg
+    If ok And act = "PDF" Then OpenOutFolder OutFolderOf(wb.Path)
+    RefreshMode
+End Sub
+
+Private Sub RunFolder(isPDF As Boolean)
+    ScanFolder
+    If mNFiles = 0 Then AppendLog "Không có file Excel nào trong thư mục.": RefreshMode: Exit Sub
+
+    Dim i As Long, k As Integer, msg As String, ok As Boolean
+    Dim n1 As Long, n2 As Long, nErr As Long, nSkip As Long, errText As String
+    Dim root As String: root = Trim$(Me.txtFolder.Text)
+
+    AppendLog "Bắt đầu " & IIf(isPDF, "xuất PDF", "in máy in") & " " & mNFiles & " file trong: " & root
+    BeginBusy ""
+    For i = 1 To mNFiles
+        If mStop Then AppendLog "Đã dừng theo yêu cầu.": Exit For
+        SetDetect "Đang xử lý " & i & "/" & mNFiles & ":  " & ShortName(CStr(mFiles(i))), ClrOrange()
+        Me.Repaint
+        DoEvents
+        ok = API_ProcessFile(CStr(mFiles(i)), isPDF, k, msg)
+        If ok Then
+            If k = 2 Then n2 = n2 + 1 Else n1 = n1 + 1
+        ElseIf k = 0 Then
+            nSkip = nSkip + 1
+        Else
+            nErr = nErr + 1
+            errText = errText & vbCrLf & "  " & CStr(mFiles(i)) & vbCrLf & "      " & msg
+        End If
+        AppendLog "[" & i & "/" & mNFiles & "] " & IIf(ok, "OK  ", IIf(k = 0, "BỎ QUA  ", "LỖI  ")) & _
+                  ShortName(CStr(mFiles(i))) & "  —  " & msg
+    Next i
+    EndBusy
+
+    Dim sum As String
+    sum = "XONG: 1 hạng mục " & n1 & " file, nhiều hạng mục " & n2 & " file, lỗi " & nErr & ", bỏ qua " & nSkip & "."
+    If nErr > 0 Then
+        Dim lp As String
+        lp = API_WriteLog(root, "KET QUA IN THU MUC - " & Format(Now, "yyyy-mm-dd hh:nn:ss") & vbCrLf & _
+                                "Thu muc: " & root & vbCrLf & _
+                                "1HM: " & n1 & " | nhieu HM: " & n2 & " | Loi: " & nErr & vbCrLf & _
+                                "==============================" & errText)
+        If Len(lp) > 0 Then sum = sum & "  Danh sách lỗi: " & lp
+    End If
+    AppendLog sum
+    If isPDF And (n1 + n2) > 0 Then OpenOutFolder OutFolderOf(root)
+    FillWorkbookList
+    RefreshMode
+End Sub
+
+Private Function ShortName(p As String) As String
+    Dim i As Long: i = InStrRev(p, "\")
+    If i > 0 Then ShortName = Mid$(p, i + 1) Else ShortName = p
+End Function
+
+Private Function OutFolderOf(defaultFolder As String) As String
+    If Len(Trim$(Me.txtOut.Text)) > 0 Then OutFolderOf = Trim$(Me.txtOut.Text) Else OutFolderOf = defaultFolder
+End Function
+
+Private Sub OpenOutFolder(f As String)
+    If Not Me.chkOpen.Value Or Len(f) = 0 Then Exit Sub
+    On Error Resume Next
+    CreateObject("Shell.Application").Open CVar(f)
+    On Error GoTo 0
+End Sub
+
+Private Sub BeginBusy(status As String)
+    mBusy = True: mStop = False
+    ResetHover
+    If Len(status) > 0 Then SetDetect status, ClrOrange()
+    Me.btnClose_t.Caption = "Dừng"
+    Me.MousePointer = 11            ' fmMousePointerHourGlass
+    Me.Repaint
+    DoEvents
+End Sub
+
+Private Sub EndBusy()
+    mBusy = False
+    Me.btnClose_t.Caption = "Đóng"
+    Me.MousePointer = 0
+End Sub
+
+' Nhat ky: dong moi nhat o tren cung
+Private Sub AppendLog(s As String)
+    mLog = Format$(Now, "hh:nn:ss") & "   " & s & vbCrLf & mLog
+    If Len(mLog) > 20000 Then mLog = Left$(mLog, 20000)
+    Me.txtLog.Text = mLog
+    Me.txtLog.SelStart = 0
+    Me.Repaint
+End Sub
+
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If CloseMode = 0 Then
+        If mBusy Then
+            Cancel = True
+            mStop = True
+        Else
+            SaveSettings
+            Set modInAnMain.gFrm = Nothing
+        End If
+    End If
+End Sub
