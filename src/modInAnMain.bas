@@ -13,6 +13,7 @@ Option Explicit
 ' ============================================================================
 
 Public gFrm As Object               ' form dang mo (modeless); form tu dat Nothing khi dong
+Public gTuBat As Boolean            ' form mo tu MO_FORM_IN_AN.bat (file tool an)
 Private Const APP_KEY As String = "ToolInAnG8"
 
 ' MsgBox cua VBA chi hien chu ANSI -> tieng Viet co dau thanh "?". Goi thang MessageBoxW (Unicode).
@@ -54,6 +55,35 @@ End Sub
 
 Public Sub MoToolInAn()
     MoBangDieuKhien
+End Sub
+
+' Goi tu MO_FORM_IN_AN.bat: an cua so file tool, chi hien form in.
+' Dong form -> tu dong file tool (va thoat Excel neu khong con file nao khac).
+Public Sub MoFormTuBat()
+    gTuBat = True
+    On Error Resume Next
+    ThisWorkbook.Windows(1).Visible = False
+    On Error GoTo 0
+    MoBangDieuKhien
+End Sub
+
+Public Sub DongToolTuBat()
+    If Not gFrm Is Nothing Then Exit Sub
+    gTuBat = False
+    Dim wb As Workbook, nVis As Integer, w As Window
+    For Each wb In Application.Workbooks
+        If Not wb Is ThisWorkbook Then
+            For Each w In wb.Windows
+                If w.Visible Then nVis = nVis + 1
+            Next w
+        End If
+    Next wb
+    If nVis = 0 Then
+        ThisWorkbook.Saved = True          ' file tool mo chi doc, cai dat luu trong registry
+        Application.Quit
+    Else
+        ThisWorkbook.Close False
+    End If
 End Sub
 
 Public Sub MoToolInAn_FileTong()

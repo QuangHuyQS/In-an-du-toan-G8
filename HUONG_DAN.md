@@ -1,5 +1,8 @@
 # Hướng dẫn sử dụng – Xuất PDF theo FILE TỔNG HỢP (V6.5)
 
+> **Mở nhanh form in:** bấm đúp `MO_FORM_IN_AN.bat` (để cùng thư mục với `FILE_TONG_IN_G8_V*.xlsm`).
+> **Thứ tự hạng mục:** file nhiều HM, gõ số ở ô đầu mỗi dòng hạng mục (1, 2, 3…) để chọn HM nào in là HM1, HM2.
+
 Tool đọc file tổng hợp (ví dụ `0. TH LUONG TAI.xlsx`), đi theo các công thức link
 tới từng file dự toán chi tiết, rồi xuất mỗi hạng mục thành 1 file PDF, đúng thứ tự trong file tổng.
 

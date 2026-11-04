@@ -49,6 +49,14 @@ try {
     if (-not $KeepForm) {
         $xl.Run('BuildInAnForm_Run', (Join-Path $gen 'frmInDuToan_code.txt'), (Join-Path $gen 'clsInAnBtn.cls'))
         Write-Host 'form built'
+    } else {
+        # Giu giao dien form, chi thay code (khong dung trinh thiet ke -> khong loi 75)
+        $cm = $vbp.VBComponents.Item('frmInDuToan').CodeModule
+        $txt = [IO.File]::ReadAllLines((Join-Path $gen 'frmInDuToan_code.txt'), [Text.Encoding]::Default) |
+            Where-Object { $_ -notmatch '^\s*(Attribute |VERSION |BEGIN|END$)' }
+        if ($cm.CountOfLines -gt 0) { $cm.DeleteLines(1, $cm.CountOfLines) }
+        $cm.AddFromString(($txt -join "`r`n"))
+        Write-Host 'form code replaced'
     }
     $xl.Run('BuildInAnForm_Sheet')
     Write-Host 'sheet updated'

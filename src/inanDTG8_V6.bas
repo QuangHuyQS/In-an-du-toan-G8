@@ -49,6 +49,7 @@ Public gAssign2(1 To HM_SHEET_COUNT) As Integer   ' noi bo: 3 = sheet dang in th
 Public gHMCount As Integer                   ' so hang muc cua file (0/1 = file 1 hang muc)
 Public gHMNames(1 To MAX_HM) As String       ' ten hang muc (doc tu file)
 Public gHMKinds(1 To MAX_HM) As String       ' "TB" | "XD" | ""
+Public gHmOrd(1 To MAX_HM) As Integer        ' thu tu nguoi dung go tren form (0 = theo thu tu trong file)
 Public gSelN(1 To HM_SHEET_COUNT, 1 To MAX_HM) As Boolean  ' in sheet idx cho hang muc hm?
 Public gOrderN(1 To HM_SHEET_COUNT) As Integer   ' so TT cua sheet trong PDF moi hang muc
 Public gTplSel(1 To HM_SHEET_COUNT) As Boolean   ' mau chon sheet khi in ca thu muc
@@ -1814,8 +1815,11 @@ Private Function ProcessWorkbookNHM(wb As Workbook, ByRef outFiles() As String, 
     Dim lst() As Integer, nL As Integer
     Dim expNames() As String, nExp As Integer
     Dim target As Worksheet, physBlk As Integer
+    Dim seq() As Integer, q As Integer
+    HmSequence seq
 
-    For hm = 1 To gHMCount
+    For q = 1 To gHMCount
+        hm = seq(q)
         SortedSheetsForHm hm, ws, lst, nL
         If nL = 0 Then GoTo NextHm
 
@@ -1872,7 +1876,7 @@ NextSheet:
             For i = 1 To nExp: nAll = nAll + 1: allNames(nAll) = expNames(i): Next i
         Else
             Dim outP As String
-            outP = folder & baseName & HmSuffix(hm) & ".pdf"
+            outP = folder & baseName & HmSuffix(hm, q) & ".pdf"
             If Len(gForcePdf(hm)) > 0 Then outP = gForcePdf(hm)
             If Not ExportSheetGroupToPdf2(wb, expNames, nExp, outP) Then GoTo Fail
             nOut = nOut + 1: outFiles(nOut) = outP
@@ -1882,7 +1886,7 @@ NextSheet:
             Next i
         End If
 NextHm:
-    Next hm
+    Next q
 
     If ghep And nAll > 0 Then
         Dim outM As String: outM = folder & baseName & ".pdf"
@@ -1939,17 +1943,50 @@ Private Function OrdN(idx As Integer) As Integer
 End Function
 
 ' Ten PDF tung hang muc: "_HM1 Lap dat" / "_HM2 Xay dung" (co dau, theo loai hang muc), khong ro loai -> "_HMk"
-Private Function HmSuffix(hm As Integer) As String
+'   hm = hang muc trong file ; no = so HM khi in (theo thu tu nguoi dung tren form)
+Private Function HmSuffix(hm As Integer, no As Integer) As String
     If gHM_TenTheoHM Then
-        HmSuffix = "-" & CleanName2(gHMNames(hm), "HM" & hm)
+        HmSuffix = "-" & CleanName2(gHMNames(hm), "HM" & no)
     Else
         Select Case KindFromName(gHMNames(hm))
-            Case "TB": HmSuffix = "_HM" & hm & " Lắp đặt"
-            Case "XD": HmSuffix = "_HM" & hm & " Xây dựng"
-            Case Else: HmSuffix = "_HM" & hm
+            Case "TB": HmSuffix = "_HM" & no & " Lắp đặt"
+            Case "XD": HmSuffix = "_HM" & no & " Xây dựng"
+            Case Else: HmSuffix = "_HM" & no
         End Select
     End If
 End Function
+
+' Thu tu in cac hang muc: seq(1) = hang muc in la HM1 ... (sap theo gHmOrd, bang nhau -> theo file)
+Private Sub HmSequence(ByRef seq() As Integer)
+    Dim n As Integer, a As Integer, b As Integer, t As Integer
+    n = gHMCount: If n < 1 Then n = 1
+    ReDim seq(1 To n)
+    For a = 1 To n: seq(a) = a: Next a
+    For a = 2 To n
+        t = seq(a): b = a - 1
+        Do While b >= 1
+            If HmOrdKey(seq(b)) > HmOrdKey(t) Then seq(b + 1) = seq(b): b = b - 1 Else Exit Do
+        Loop
+        seq(b + 1) = t
+    Next a
+End Sub
+
+Private Function HmOrdKey(hm As Integer) As Long
+    Dim o As Integer: o = gHmOrd(hm)
+    If o < 1 Then o = hm
+    HmOrdKey = CLng(o) * 100 + hm
+End Function
+
+' Dat thu tu HM khi goi tu ngoai (vd "2,1,3" = HM trong file 1 in la so 2...); "" = mac dinh
+Public Sub API_SetHmOrder(ByVal ordList As String)
+    Dim k As Integer, p As Variant
+    For k = 1 To MAX_HM: gHmOrd(k) = 0: Next k
+    If Len(Trim$(ordList)) = 0 Then Exit Sub
+    p = Split(ordList, ",")
+    For k = 0 To UBound(p)
+        If k + 1 <= MAX_HM Then gHmOrd(k + 1) = CInt(Val(p(k)))
+    Next k
+End Sub
 
 Private Function BlockCount(ws As Worksheet, idx As Integer) As Integer
     Dim t() As Long, b() As Long, kd() As String, h() As Long, n As Integer
@@ -3999,7 +4036,8 @@ End Sub
 Public Function API_RunTong(sumPath As String, ByVal outFolder As String, inclTongCong As Boolean, _
         ByRef report As String, Optional fromLeaf As Long = 1, Optional toLeaf As Long = 0, _
         Optional logTo As Object = Nothing) As Long
-    API_RunTong = TongRun(sumPath, outFolder, inclTongCong, report, fromLeaf, toLeaf, logTo)
+    API_SetHmOrder ""                                    ' file tong: HM theo thu tu trong file
+    API_RunTong =TongRun(sumPath, outFolder, inclTongCong, report, fromLeaf, toLeaf, logTo)
     gTongReport = report
 End Function
 

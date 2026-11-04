@@ -73,7 +73,17 @@ Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.
 - Tuỳ chọn cho form đọc từ sheet `IN THEO FILE TONG` (C8, C9, C12, C13) — form không dựng lại được để thêm ô.
 - Thử qua `API_Run1HM` (đúng hàm nút XUẤT PDF) trên file 9.1: OK.
 
+## Lần 10 – Sắp thứ tự hạng mục trên form, file .bat mở form (04/11/2026)
+- Mỗi dòng hạng mục trên form có ô số thứ tự (mặc định 1, 2, 3…). Gõ lại số để quyết định HM nào in là HM1, HM2…:
+  tên PDF tách (`_HM1 Xây dựng`, `_HM2 Lắp đặt`) và thứ tự trang khi ghép theo số này.
+- Ô số tạo lúc chạy (`MakeOrderBoxes`), không cần dựng lại giao diện. BUILD_V6.ps1 `-KeepForm` nay thay code form từ `gen\`.
+- Engine: `gHmOrd`, `HmSequence`, `API_SetHmOrder("2,1")`; in theo file tổng luôn theo thứ tự trong file.
+- `MO_FORM_IN_AN.bat` (+ `.vbs`): mở thẳng form, không phải mở .xlsm. Dùng Excel đang mở nếu có;
+  file tool mở chỉ đọc, ẩn cửa sổ; đóng form thì tự đóng file tool.
+- Thử: file 1d (2 HM) thứ tự "3,1" → `_HM1 Xây dựng.pdf`, `_HM2 Lắp đặt.pdf`. File .bat mở được form.
+
 ## Chưa làm / hạn chế
+- Đổi số thứ tự HM không tự dời tick Giá tháng (mặc định HM cuối) / TH chi phí TB (HM đầu) – tick lại tay nếu cần.
 - Chưa mở PDF để kiểm tra từng trang (môi trường không có trình xem PDF) – cần người dùng duyệt mẫu.
 - Giá tháng vẫn ẩn E, G:J theo chữ cái cột (cùng layout ở mọi file đã gặp); cột Mã số đã tìm theo tiêu đề.
 - Tuỳ chọn trên form `frmInDuToan` (in từng file) chưa có ô Tên dự án / viết hoa – mới có ở in theo file tổng.

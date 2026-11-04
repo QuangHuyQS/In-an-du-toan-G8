@@ -36,6 +36,7 @@ Private Sub UserForm_Initialize()
     For r = 1 To ROWS_MAX
         WireBtn "row:" & r, Me.fraHM.Controls("lblH_" & r)
     Next r
+    MakeOrderBoxes
     ReDim mEx1(1 To 8): ReDim mEx2(1 To 6)
 
     Dim i As Integer
@@ -51,6 +52,24 @@ Private Sub UserForm_Initialize()
     ScanFolder
     RefreshMode
     AppendLog "Sẵn sàng. Form không khoá Excel: vẫn mở / sửa file khác được, bấm 'Làm mới' để cập nhật danh sách."
+End Sub
+
+' O "thu tu HM" dau moi dong hang muc (tao luc chay, khong can trinh thiet ke form)
+'   nguoi dung go 1, 2, 3... = so HM khi in (ten PDF _HMn, thu tu khi ghep)
+Private Sub MakeOrderBoxes()
+    Dim r As Integer, t As Object, l As Object
+    For r = 1 To ROWS_MAX
+        Set l = Me.fraHM.Controls("lblH_" & r)
+        Set t = Me.fraHM.Controls.Add("Forms.TextBox.1", "txtHO_" & r, True)
+        t.Left = l.Left: t.Top = l.Top - 1: t.Width = 20: t.Height = l.Height + 2
+        t.Font.Size = l.Font.Size: t.Font.Bold = True
+        t.TextAlign = 2: t.MaxLength = 2
+        t.SpecialEffect = 0: t.BorderStyle = 1
+        t.ControlTipText = "Số HM khi in (1, 2, 3...): quyết định tên PDF _HM1/_HM2 và thứ tự khi ghép"
+        t.Text = CStr(r)
+        t.Visible = False
+        l.Left = l.Left + 24: l.Width = l.Width - 24
+    Next r
 End Sub
 
 Private Sub WireBtn(nm As String, ctl As Object)
@@ -236,9 +255,10 @@ Private Sub DetectCurrent()
     mLoading = True
     For r = 1 To ROWS_MAX
         If r <= mNHM Then
-            Me.fraHM.Controls("lblH_" & r).Caption = r & ".  " & names(r)
+            Me.fraHM.Controls("lblH_" & r).Caption = names(r)
             Me.fraHM.Controls("lblH_" & r).ControlTipText = names(r)
         End If
+        Me.fraHM.Controls("txtHO_" & r).Text = CStr(r)
     Next r
     ApplyMasterToRows
     mLoading = False
@@ -364,6 +384,7 @@ Private Sub RefreshMode()
     For r = 1 To ROWS_MAX
         Dim vis As Boolean: vis = (r <= nRows)
         Me.fraHM.Controls("lblH_" & r).Visible = vis
+        Me.fraHM.Controls("txtHO_" & r).Visible = vis
         If r Mod 2 = 0 Then Me.fraHM.Controls("rowH_" & r).Visible = vis
         For k = 1 To 6
             HChk(r, k).Visible = vis
@@ -529,6 +550,7 @@ End Sub
 Private Sub CloseForm()
     SaveSettings
     Set modInAnMain.gFrm = Nothing
+    If modInAnMain.gTuBat Then Application.OnTime Now, "'" & ThisWorkbook.Name & "'!DongToolTuBat"
     Unload Me
 End Sub
 
@@ -611,6 +633,10 @@ Private Function Harvest() As Boolean
             If r <= mNHM And r <= ROWS_MAX Then gSelN(k, r) = HChk(r, k).Value And HChk(r, k).Enabled
         Next r
     Next k
+    For r = 1 To MAX_HM
+        gHmOrd(r) = 0
+        If r <= mNHM And r <= ROWS_MAX Then gHmOrd(r) = ReadTT(Me.fraHM.Controls("txtHO_" & r))
+    Next r
     gGiaTongHopInTongCong = Me.chkTong.Value
     gGTH_InTongCong2 = Me.chkTong.Value
     gHM_XuatKieu = IIf(Me.optGhep.Value, "GHEP", "TACH")
@@ -797,6 +823,7 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
         Else
             SaveSettings
             Set modInAnMain.gFrm = Nothing
+            If modInAnMain.gTuBat Then Application.OnTime Now, "'" & ThisWorkbook.Name & "'!DongToolTuBat"
         End If
     End If
 End Sub
