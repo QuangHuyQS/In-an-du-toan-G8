@@ -74,7 +74,8 @@ Public gTongDryRun As Boolean           ' True = chi do lien ket, khong xuat PDF
 Public gTongTenDuAn As String           ' thay "Ten du an:" (rong = giu nguyen)
 Public gTongTenCongTrinh As String      ' thay "Ten cong trinh:" / "CONG TRINH :" (rong = giu nguyen)
 Public gGTShowMaSo As Boolean           ' True = Gia thang VAN in cot Ma so (mac dinh: an)
-Public gTongShowZeros As Boolean        ' True = VAN hien so 0 (mac dinh: an - Excel DisplayZeros = False)
+Public gTongKeepBangChu As Boolean      ' True = VAN in dong "Bang chu: ..." (mac dinh: an)
+Public gTongShowZeros As Boolean       ' True = VAN hien so 0 (mac dinh: an - Excel DisplayZeros = False)
 Public gTongNoUpper As Boolean        ' True = KHONG viet hoa dong Ten du an / cong trinh / hang muc o THKP (mac dinh: viet hoa)
 Public gTongSel1 As String             ' sheet in cho file 1 hang muc, theo thu tu: idx V3 (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB)
 Public gTongSelN As String              ' sheet in cho file nhieu hang muc, theo thu tu: idx HM (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 TB)
@@ -224,6 +225,7 @@ Private Function AlignAndExportOneWorkbook(wbk As Workbook, act As String, pdfPa
     Next i
     If Not foundAny Then AlignAndExportOneWorkbook = False: Exit Function
     If Not gTongShowZeros Then TongSetDisplayZeros wbk, False    ' mac dinh: o gia tri 0 in ra de trong
+    TongHideBangChu wbk                                        ' mac dinh: an dong Bang chu
 
     ' QUAN TRONG: mot so phien ban Excel bao loi 1004 khi Select/Activate sheet
     ' luc ScreenUpdating=False va workbook vua moi mo. Bat tam ScreenUpdating
@@ -247,6 +249,7 @@ Private Function AlignAndExportOneWorkbook(wbk As Workbook, act As String, pdfPa
     For i = 1 To SHEET_COUNT
         If gSelSheet(i) And Not ws(i) Is Nothing Then
             On Error Resume Next
+            TongHideBangChuWs ws(i)                 ' an dong "Bang chu" (truoc khi tinh vung in)
             ApplySettingsToWorksheet i, ws(i)
             ws(i).ResetAllPageBreaks
             On Error GoTo Fail
@@ -1032,7 +1035,6 @@ Private Sub ApplySettingsToWorksheet(idx As Integer, ws As Worksheet)
             THKPLayout ws, 1, 40, kpHdr, kpCol
             If kpHdr = 0 Then kpHdr = 6
             lastRow = GetLastRowWithBorder(ws, kpHdr, ColL(kpCol))
-            lastRow = THKPExtendBangChu(ws, lastRow)
             .PrintArea         = "$A$1:$" & ColL(kpCol) & "$" & lastRow
             titleRowsStr       = "$" & kpHdr & ":$" & kpHdr
             .Orientation       = xlLandscape
@@ -1735,6 +1737,7 @@ Private Function ProcessWorkbookNHM(wb As Workbook, ByRef outFiles() As String, 
     wb.Windows(1).Activate
     On Error GoTo Fail
     If Not gTongShowZeros Then TongSetDisplayZeros wb, False     ' mac dinh: o gia tri 0 in ra de trong
+    TongHideBangChu wb                                         ' mac dinh: an dong Bang chu
 
     Dim ws(1 To HM_SHEET_COUNT) As Worksheet
     Dim k As Integer
@@ -2082,6 +2085,11 @@ Private Function ExportSheetGroupToPdf2(wb As Workbook, expNames() As String, nE
     ExportSheetGroupToPdf2 = False
 
     On Error Resume Next
+    ' An dong "Bang chu" NGAY truoc khi xuat (cac buoc tach khoi o tren co hien lai moi dong)
+    Dim hb As Integer
+    For hb = 1 To nExp
+        TongHideBangChuWs wb.Sheets(expNames(hb))
+    Next hb
     Dim mv As Integer
     For mv = 2 To nExp
         wb.Sheets(expNames(mv)).Move After:=wb.Sheets(expNames(mv - 1))
@@ -3737,6 +3745,7 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
     TongApplyNames wbk, gTongTenDuAn, gTongTenCongTrinh
     If Not gTongNoUpper Then TongUpperTHKP wbk
     If Not gTongShowZeros Then TongSetDisplayZeros wbk, False   ' (cho ca muc TB / in nguyen sheet)
+    TongHideBangChu wbk
 
     ' ---- muc TB / RAW: moi sheet 1 PDF ; cung sheet -> chung PDF ----
     Dim jIdx() As Long, nJ As Long
@@ -3953,6 +3962,46 @@ Public Sub TongSetDisplayZeros(wbk As Workbook, ByVal show As Boolean)
     Application.ScreenUpdating = su
     Err.Clear
     On Error GoTo 0
+End Sub
+
+' An moi dong "Bang chu: ..." (so tien doc thanh chu, go tay -> de sai khi so lieu doi) tren moi sheet
+' truoc khi in. Tim o cot A..C. Chi trong bo nho. gTongKeepBangChu = True -> giu.
+Public Sub TongHideBangChu(wbk As Workbook)
+    If gTongKeepBangChu Then Exit Sub
+    Dim ws As Worksheet
+    For Each ws In wbk.Worksheets
+        If ws.Visible = xlSheetVisible Or InStr(NormUp2(ws.Name), "GIA THANG") > 0 Then TongHideBangChuWs ws
+    Next ws
+End Sub
+
+Public Sub TongHideBangChuWs(ws As Worksheet)
+    If gTongKeepBangChu Then Exit Sub
+    If ws Is Nothing Then Exit Sub
+    Dim lastR As Long, r As Long, c As Long, v As Variant
+    On Error Resume Next
+    lastR = 0
+    lastR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
+    On Error GoTo 0
+    If lastR > 6000 Then lastR = 6000
+    If lastR < 2 Then Exit Sub
+    v = ws.Range(ws.Cells(1, 1), ws.Cells(lastR, 3)).Value2
+    For r = 1 To lastR
+        For c = 1 To 3
+            If VarType(v(r, c)) = vbString Then
+                If Left$(Trim$(NormUp2(CStr(v(r, c)))), 8) = "BANG CHU" Then
+                    On Error Resume Next
+                    ws.Rows(r).Hidden = True
+                    On Error GoTo 0
+                    Exit For
+                End If
+            End If
+        Next c
+    Next r
+End Sub
+
+' True = giu dong "Bang chu" (mac dinh: an)
+Public Sub API_SetGiuBangChu(ByVal b As Boolean)
+    gTongKeepBangChu = b
 End Sub
 
 ' True (mac dinh) = Gia thang an cot Ma so

@@ -57,6 +57,9 @@ File nguồn nằm ngoài thư mục file tổng → `_NGOAI THU MUC TONG\`.
 Ô có giá trị 0 **luôn in ra để trống** (tắt "Show a zero in cells that have zero value" trên mọi sheet trước
 khi xuất) — áp dụng cho cả in theo file tổng lẫn in từng file trên form.
 
+Dòng **"Bằng chữ: …"** (số tiền đọc thành chữ, gõ tay nên dễ sai khi số liệu đổi) được **ẩn trên mọi sheet**
+trước khi xuất. `API_SetGiuBangChu True` để giữ.
+
 Tên dự án / công trình chỉ thay trên bản in — file nguồn mở chỉ đọc, **không bị lưu đè**.
 
 ## 3. Mỗi PDF gồm những gì (theo thứ tự trang)
