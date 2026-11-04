@@ -56,6 +56,15 @@ Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.
 - Áp cho cả nhánh 1 hạng mục và nhiều hạng mục (mỗi khối nhận riêng). Kiểm tra trên San nền, Cây xanh,
   9.1, 4. TNT (2 HM), 2c Điện (6 HM) – đúng; xuất thử 11 PDF vào `PDF_TEST\_GD2`.
 
+## Lần 8 – Chạy đủ 53 mục qua nút, ẩn số 0, hộp thoại tiếng Việt (04/11/2026)
+- Chạy qua macro nút ▶ BẮT ĐẦU XUẤT (Excel hiển thị) vào `PDF_V6.5`: 53 mục → 103 mục in, 102 PDF,
+  0 lỗi, 33 phút (bản trước khi có ẩn số 0).
+- Ô giá trị 0 luôn in ra để trống (`DisplayZeros = False` trên mọi sheet) ở cả 2 hàm xuất chung →
+  áp cho in theo file tổng lẫn form. `API_SetTongAnSo0 False` để giữ số 0 (không có ô trên giao diện).
+- `MsgBox` của VBA chỉ hiện ANSI → tiếng Việt thành "?". Thay bằng `MsgBoxU` (MessageBoxW, Unicode)
+  ở mọi hộp thoại của `modInAnMain`.
+- Đẩy nhánh lên fork `QuangHuyQS/In-an-du-toan-G8` (tài khoản QuangHuyQS không có quyền ghi repo gốc).
+
 ## Chưa làm / hạn chế
 - Chưa mở PDF để kiểm tra từng trang (môi trường không có trình xem PDF) – cần người dùng duyệt mẫu.
 - Giá tháng vẫn ẩn E, G:J theo chữ cái cột (cùng layout ở mọi file đã gặp); cột Mã số đã tìm theo tiêu đề.

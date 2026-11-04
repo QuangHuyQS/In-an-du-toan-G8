@@ -237,7 +237,7 @@ Private Sub BuildTongCfgSheet()
         .Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="1", Formula2:="20"
         .ErrorMessage = "Nhập số thứ tự in (1, 2, 3…) hoặc để trống = không in."
     End With
-    ws.Range("B25").Value = "Ô thứ tự để TRỐNG = không in sheet đó. Số nhỏ in trước. Sheet nào file nguồn không có thì tự bỏ qua."
+    ws.Range("B25").Value = "Ô giá trị 0 luôn in ra để trống. Ô thứ tự để TRỐNG = không in sheet đó. Số nhỏ in trước. Sheet nào file nguồn không có thì tự bỏ qua."
     ws.Range("B26").Value = "File 1 hạng mục: cả file 1 PDF.   File 2, 3… hạng mục: mỗi hạng mục 1 PDF, các sheet trên được tách đúng phần của hạng mục đó."
     ws.Range("B25:B26").Font.Color = RGB(100, 116, 139)
 

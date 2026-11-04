@@ -15,6 +15,22 @@ Option Explicit
 Public gFrm As Object               ' form dang mo (modeless); form tu dat Nothing khi dong
 Private Const APP_KEY As String = "ToolInAnG8"
 
+' MsgBox cua VBA chi hien chu ANSI -> tieng Viet co dau thanh "?". Goi thang MessageBoxW (Unicode).
+#If VBA7 Then
+Private Declare PtrSafe Function MessageBoxW Lib "user32" (ByVal hWnd As LongPtr, ByVal lpText As LongPtr, _
+        ByVal lpCaption As LongPtr, ByVal uType As Long) As Long
+#Else
+Private Declare Function MessageBoxW Lib "user32" (ByVal hWnd As Long, ByVal lpText As Long, _
+        ByVal lpCaption As Long, ByVal uType As Long) As Long
+#End If
+
+' Thay MsgBox: hien dung tieng Viet. Tra ve vbOK / vbYes / vbNo / vbCancel nhu MsgBox.
+Public Function MsgBoxU(ByVal prompt As String, Optional ByVal buttons As Long = vbOKOnly, _
+        Optional ByVal title As String = "") As VbMsgBoxResult
+    If Len(title) = 0 Then title = "In ấn dự toán G8"
+    MsgBoxU = MessageBoxW(Application.hWnd, StrPtr(prompt), StrPtr(title), buttons Or &H10000)   ' MB_SETFOREGROUND
+End Function
+
 ' Form MODELESS: mo xong van lam viec voi cac cua so Excel khac.
 ' Bam lai nut khi form dang mo -> dua form len tren, khong mo them.
 Public Sub MoBangDieuKhien()
@@ -30,7 +46,7 @@ Public Sub MoBangDieuKhien()
     Set gFrm = VBA.UserForms.Add("frmInDuToan")   ' late bind: module van bien dich khi chua co form
     On Error GoTo 0
     If gFrm Is Nothing Then
-        MsgBox "Thieu form frmInDuToan trong file nay. Chay lai BUILD_V6.ps1.", vbExclamation
+        MsgBoxU "Thiếu form frmInDuToan trong file này. Chạy lại BUILD_V6.ps1.", vbExclamation
         Exit Sub
     End If
     gFrm.Show vbModeless
@@ -102,7 +118,7 @@ Public Sub XuatTheoFileTong()
     If Not XuatTong_PickFile(ws) Then Exit Sub
     ws.Activate
     ws.Range("C8").Select
-    MsgBox "Đã chọn file tổng hợp:" & vbCrLf & ws.Range("C4").Value & vbCrLf & vbCrLf & _
+    MsgBoxU "Đã chọn file tổng hợp:" & vbCrLf & ws.Range("C4").Value & vbCrLf & vbCrLf & _
            "Chọn sheet cần in (cột thứ tự cho file 1 hạng mục / nhiều hạng mục)," & vbCrLf & _
            "điền Tên dự án nếu muốn thay, rồi bấm  ▶ BẮT ĐẦU XUẤT.", vbInformation, "Xuất PDF theo file tổng hợp"
 End Sub
@@ -119,7 +135,7 @@ Private Function TongCfgSheet() As Worksheet
     Set TongCfgSheet = ThisWorkbook.Worksheets("IN THEO FILE TONG")
     On Error GoTo 0
     If TongCfgSheet Is Nothing Then
-        MsgBox "Thiếu sheet 'IN THEO FILE TONG'. Chạy lại BUILD_V6.ps1 để dựng lại tool.", vbExclamation
+        MsgBoxU "Thiếu sheet 'IN THEO FILE TONG'. Chạy lại BUILD_V6.ps1 để dựng lại tool.", vbExclamation
     End If
 End Function
 
@@ -192,7 +208,7 @@ Public Sub XuatTong_BatDau()
     s1 = TongSelList(ws, 3, False)
     sN = TongSelList(ws, 4, True)
     If s1 = "0" And sN = "0" Then
-        MsgBox "Chưa chọn sheet nào để in (cột thứ tự đang trống).", vbExclamation, "Xuất PDF theo file tổng hợp"
+        MsgBoxU "Chưa chọn sheet nào để in (cột thứ tự đang trống).", vbExclamation, "Xuất PDF theo file tổng hợp"
         Exit Sub
     End If
 
@@ -209,7 +225,7 @@ Public Sub XuatTong_BatDau()
     Application.StatusBar = False
     API_SetTongDryRun False
     If dry Then
-        MsgBox "Chạy khô xong (không xuất PDF). Danh sách + nguồn từng mục:" & vbCrLf & _
+        MsgBoxU "Chạy khô xong (không xuất PDF). Danh sách + nguồn từng mục:" & vbCrLf & _
                outF & "\_THU_TU_XUAT.txt", vbInformation, "Xuất PDF theo file tổng hợp"
         On Error Resume Next
         CreateObject("Shell.Application").Open CVar(outF & "\_THU_TU_XUAT.txt")
@@ -217,7 +233,7 @@ Public Sub XuatTong_BatDau()
         Exit Sub
     End If
     If n > 0 Then
-        MsgBox "Đã xuất " & n & " PDF vào:" & vbCrLf & outF & vbCrLf & vbCrLf & _
+        MsgBoxU "Đã xuất " & n & " PDF vào:" & vbCrLf & outF & vbCrLf & vbCrLf & _
                "Thứ tự + nguồn từng mục: _THU_TU_XUAT.txt" & _
                IIf(InStr(rep, "KHONG XUAT") > 0, vbCrLf & "CÓ mục không xuất được - mở file đó, tìm 'KHONG XUAT'.", ""), _
                vbInformation, "Xuất PDF theo file tổng hợp"
@@ -225,6 +241,6 @@ Public Sub XuatTong_BatDau()
         CreateObject("Shell.Application").Open CVar(outF)
         On Error GoTo 0
     Else
-        MsgBox "Không xuất được PDF nào." & vbCrLf & Left$(rep, 800), vbExclamation, "Xuất PDF theo file tổng hợp"
+        MsgBoxU "Không xuất được PDF nào." & vbCrLf & Left$(rep, 800), vbExclamation, "Xuất PDF theo file tổng hợp"
     End If
 End Sub

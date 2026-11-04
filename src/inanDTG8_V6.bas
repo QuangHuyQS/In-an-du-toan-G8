@@ -74,7 +74,8 @@ Public gTongDryRun As Boolean           ' True = chi do lien ket, khong xuat PDF
 Public gTongTenDuAn As String           ' thay "Ten du an:" (rong = giu nguyen)
 Public gTongTenCongTrinh As String      ' thay "Ten cong trinh:" / "CONG TRINH :" (rong = giu nguyen)
 Public gGTShowMaSo As Boolean           ' True = Gia thang VAN in cot Ma so (mac dinh: an)
-Public gTongNoUpper As Boolean         ' True = KHONG viet hoa dong Ten du an / cong trinh / hang muc o THKP (mac dinh: viet hoa)
+Public gTongShowZeros As Boolean        ' True = VAN hien so 0 (mac dinh: an - Excel DisplayZeros = False)
+Public gTongNoUpper As Boolean        ' True = KHONG viet hoa dong Ten du an / cong trinh / hang muc o THKP (mac dinh: viet hoa)
 Public gTongSel1 As String             ' sheet in cho file 1 hang muc, theo thu tu: idx V3 (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB)
 Public gTongSelN As String              ' sheet in cho file nhieu hang muc, theo thu tu: idx HM (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 TB)
 Public gTongReport As String  ' bao cao lan chay API_RunTong gan nhat (doc qua Application.Run khi goi tu ngoai)
@@ -222,6 +223,7 @@ Private Function AlignAndExportOneWorkbook(wbk As Workbook, act As String, pdfPa
         If Not ws(i) Is Nothing Then foundAny = True
     Next i
     If Not foundAny Then AlignAndExportOneWorkbook = False: Exit Function
+    If Not gTongShowZeros Then TongSetDisplayZeros wbk, False    ' mac dinh: o gia tri 0 in ra de trong
 
     ' QUAN TRONG: mot so phien ban Excel bao loi 1004 khi Select/Activate sheet
     ' luc ScreenUpdating=False va workbook vua moi mo. Bat tam ScreenUpdating
@@ -1732,6 +1734,7 @@ Private Function ProcessWorkbookNHM(wb As Workbook, ByRef outFiles() As String, 
     wb.Activate
     wb.Windows(1).Activate
     On Error GoTo Fail
+    If Not gTongShowZeros Then TongSetDisplayZeros wb, False     ' mac dinh: o gia tri 0 in ra de trong
 
     Dim ws(1 To HM_SHEET_COUNT) As Worksheet
     Dim k As Integer
@@ -3733,6 +3736,7 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
     End If
     TongApplyNames wbk, gTongTenDuAn, gTongTenCongTrinh
     If Not gTongNoUpper Then TongUpperTHKP wbk
+    If Not gTongShowZeros Then TongSetDisplayZeros wbk, False   ' (cho ca muc TB / in nguyen sheet)
 
     ' ---- muc TB / RAW: moi sheet 1 PDF ; cung sheet -> chung PDF ----
     Dim jIdx() As Long, nJ As Long
@@ -3920,6 +3924,35 @@ End Sub
 ' True (mac dinh) = viet HOA ca dong "Ten du an / Ten cong trinh / Ten hang muc" o THKP
 Public Sub API_SetTongUpper(ByVal b As Boolean)
     gTongNoUpper = Not b
+End Sub
+
+' True (mac dinh) = khong hien gia tri 0 (o = 0 in ra de trong) - tuy chon "Show a zero..." cua Excel
+Public Sub API_SetTongAnSo0(ByVal b As Boolean)
+    gTongShowZeros = Not b
+End Sub
+
+' Dat DisplayZeros cho moi sheet dang hien cua file (thiet lap theo cua so, nen phai Activate tung sheet).
+' Chi trong bo nho - file nguon mo chi doc, khong luu.
+Public Sub TongSetDisplayZeros(wbk As Workbook, ByVal show As Boolean)
+    Dim ws As Worksheet, w As Window, prev As Object, su As Boolean
+    On Error Resume Next
+    Set w = wbk.Windows(1)
+    If w Is Nothing Then Exit Sub
+    Set prev = wbk.ActiveSheet
+    su = Application.ScreenUpdating
+    Application.ScreenUpdating = False
+    wbk.Activate
+    For Each ws In wbk.Worksheets
+        If ws.Visible = xlSheetVisible Or InStr(NormUp2(ws.Name), "GIA THANG") > 0 Then
+            If ws.Visible <> xlSheetVisible Then ws.Visible = xlSheetVisible
+            ws.Activate
+            w.DisplayZeros = show
+        End If
+    Next ws
+    If Not prev Is Nothing Then prev.Activate
+    Application.ScreenUpdating = su
+    Err.Clear
+    On Error GoTo 0
 End Sub
 
 ' True (mac dinh) = Gia thang an cot Ma so
