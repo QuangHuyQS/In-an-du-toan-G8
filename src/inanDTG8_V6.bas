@@ -604,6 +604,32 @@ Private Sub THKPHideEmptyRows(ws As Worksheet)
     Next r
 End Sub
 
+' Gia thang: cot "Ghi chu, Nguon goc xuat xu" rong co dinh + xuong dong (truoc AutoFit -> cot qua rong,
+' ca bang bi thu nho khi in). Gian lai chieu cao cac dong du lieu.
+Public Sub GiaThangWrapGhiChu(ws As Worksheet)
+    Const GT_GHICHU_WIDTH As Double = 38       ' do rong cot Ghi chu (ky tu)
+    Dim r As Long, c As Long, hr As Long, gc As Long, lastR As Long
+    For r = 1 To 8
+        For c = 1 To 15
+            If Left$(Trim$(NormUp2(SafeText2(ws, r, c))), 7) = "GHI CHU" Then hr = r: gc = c: Exit For
+        Next c
+        If gc > 0 Then Exit For
+    Next r
+    If gc = 0 Then Exit Sub
+    On Error Resume Next
+    lastR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
+    ws.Columns(gc).ColumnWidth = GT_GHICHU_WIDTH
+    If lastR > hr Then
+        With ws.Range(ws.Cells(hr + 1, gc), ws.Cells(lastR, gc))
+            .WrapText = True
+            .VerticalAlignment = xlCenter
+        End With
+        ' chi gian dong DANG HIEN (AutoFit dong an co the lam hien lai dong Bang chu / dong trong da an)
+        ws.Range(ws.Cells(hr + 1, 1), ws.Cells(lastR, 1)).SpecialCells(xlCellTypeVisible).EntireRow.AutoFit
+    End If
+    On Error GoTo 0
+End Sub
+
 ' Gia thang: an cot "Ma so" (tim theo tieu de dong 1..8, mac dinh cot B). gGTShowMaSo = True -> giu.
 Public Sub GiaThangHideMaSo(ws As Worksheet)
     If gGTShowMaSo Then Exit Sub
@@ -1155,7 +1181,7 @@ Private Sub AutoFitNumericColumns(ws As Worksheet, idx As Integer)
         ' AutoFitNum2 (nhanh 2 hang muc, dang dung dung "F:F" + "K:K" rieng
         ' le, khong bi loi nay).
         ws.Columns("F:F").AutoFit
-        ws.Columns("K:K").AutoFit
+        GiaThangWrapGhiChu ws          ' Ghi chu: rong co dinh + xuong dong (khong AutoFit nua)
     Case 6 ' Tong hop VT: cot so (in den S)
         ws.Columns("G:S").AutoFit
     Case 7 ' TH chi phi XD: cot gia tri
@@ -2749,7 +2775,7 @@ Private Sub AutoFitNum2(ws As Worksheet, idx As Integer)
         If gGTH_InTongCong2 Then ws.Columns("L:L").ColumnWidth = 16
     Case 3: ws.Columns("F:H").AutoFit
     Case 4: ws.Columns("K:L").AutoFit
-    Case 5: ws.Columns("F:F").AutoFit: ws.Columns("K:K").AutoFit
+    Case 5: ws.Columns("F:F").AutoFit: GiaThangWrapGhiChu ws
     Case 6: ws.Columns("D:J").AutoFit
     End Select
     On Error GoTo 0
