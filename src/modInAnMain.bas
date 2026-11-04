@@ -95,42 +95,125 @@ Public Function ClrBtnCancelHover() As Long: ClrBtnCancelHover = RGB(92, 58, 58)
 '  muc 1 PDF dat ten <NN>_<STT>_<ten>.pdf theo dung thu tu file tong.
 '  Engine: inanDTG8_V6.API_RunTong.
 ' ============================================================================
+' Nut xanh tren sheet chinh: chon file tong -> sang sheet cau hinh de chon sheet / ten du an
 Public Sub XuatTheoFileTong()
-    Dim fd As Object, sumPath As String, outF As String, defOut As String
-    Dim n As Long, rep As String, ans As VbMsgBoxResult
-    sumPath = CfgGet("sumfile", "")
+    Dim ws As Worksheet: Set ws = TongCfgSheet()
+    If ws Is Nothing Then Exit Sub
+    If Not XuatTong_PickFile(ws) Then Exit Sub
+    ws.Activate
+    ws.Range("C8").Select
+    MsgBox "Đã chọn file tổng hợp:" & vbCrLf & ws.Range("C4").Value & vbCrLf & vbCrLf & _
+           "Chọn sheet cần in (cột thứ tự cho file 1 hạng mục / nhiều hạng mục)," & vbCrLf & _
+           "điền Tên dự án nếu muốn thay, rồi bấm  ▶ BẮT ĐẦU XUẤT.", vbInformation, "Xuất PDF theo file tổng hợp"
+End Sub
+
+' Nut "Chon file tong hop..." tren sheet cau hinh
+Public Sub XuatTong_ChonFile()
+    Dim ws As Worksheet: Set ws = TongCfgSheet()
+    If ws Is Nothing Then Exit Sub
+    XuatTong_PickFile ws
+End Sub
+
+Private Function TongCfgSheet() As Worksheet
+    On Error Resume Next
+    Set TongCfgSheet = ThisWorkbook.Worksheets("IN THEO FILE TONG")
+    On Error GoTo 0
+    If TongCfgSheet Is Nothing Then
+        MsgBox "Thiếu sheet 'IN THEO FILE TONG'. Chạy lại BUILD_V6.ps1 để dựng lại tool.", vbExclamation
+    End If
+End Function
+
+Private Function XuatTong_PickFile(ws As Worksheet) As Boolean
+    Dim fd As Object, sumPath As String
+    sumPath = Trim$(CStr(ws.Range("C4").Value))
+    If Len(sumPath) = 0 Then sumPath = CfgGet("sumfile", "")
     Set fd = Application.FileDialog(3)          ' msoFileDialogFilePicker
     fd.Title = "Chọn FILE TỔNG HỢP (chứa công thức link tới các file dự toán)"
     fd.AllowMultiSelect = False
     fd.Filters.Clear
     fd.Filters.Add "Excel", "*.xls;*.xlsx;*.xlsm"
     If Len(sumPath) > 0 Then fd.InitialFileName = sumPath
-    If fd.Show <> -1 Then Exit Sub
+    If fd.Show <> -1 Then Exit Function
     sumPath = fd.SelectedItems(1)
     CfgSet "sumfile", sumPath
+    ws.Range("C4").Value = sumPath
+    XuatTong_PickFile = True
+End Function
 
-    defOut = Left$(sumPath, InStrRev(sumPath, "\")) & "PDF"
-    ans = MsgBox("Lưu PDF vào:" & vbCrLf & defOut & vbCrLf & vbCrLf & _
-                 "Yes = lưu vào đây   |   No = chọn thư mục khác   |   Cancel = huỷ", _
-                 vbYesNoCancel + vbQuestion, "Xuất PDF theo file tổng hợp")
-    If ans = vbCancel Then Exit Sub
-    If ans = vbYes Then
-        outF = defOut
+' Doc cot thu tu (C = 1 hang muc, D = nhieu hang muc) dong 14..21 -> "8,1,2,3,5"
+'   dong : 14 TB, 15 THKP, 16 Gia TH, 17 DGCT, 18 Cong trinh, 19 Gia thang, 20 Tong hop VT, 21 TH chi phi XD
+Private Function TongSelList(ws As Worksheet, col As Long, isMulti As Boolean) As String
+    Dim ids As Variant, ord(1 To 8) As Double, idx(1 To 8) As Integer, n As Integer
+    Dim i As Integer, j As Integer, v As Variant, tD As Double, tI As Integer, s As String
+    If isMulti Then
+        ids = Array(6, 1, 2, 3, 4, 5, 0, 0)
     Else
-        Set fd = Application.FileDialog(4)      ' msoFileDialogFolderPicker
-        fd.Title = "Chọn thư mục lưu PDF"
-        If fd.Show <> -1 Then Exit Sub
-        outF = fd.SelectedItems(1)
+        ids = Array(8, 1, 2, 3, 4, 5, 6, 7)
+    End If
+    For i = 0 To 7
+        v = ws.Cells(14 + i, col).Value
+        If ids(i) > 0 And IsNumeric(v) And Not IsEmpty(v) And CStr(v) <> "" Then
+            If CDbl(v) > 0 Then n = n + 1: ord(n) = CDbl(v): idx(n) = CInt(ids(i))
+        End If
+    Next i
+    For i = 2 To n                                   ' sap xep theo so thu tu
+        For j = i To 2 Step -1
+            If ord(j) < ord(j - 1) Then
+                tD = ord(j): ord(j) = ord(j - 1): ord(j - 1) = tD
+                tI = idx(j): idx(j) = idx(j - 1): idx(j - 1) = tI
+            End If
+        Next j
+    Next i
+    For i = 1 To n: s = s & IIf(i > 1, ",", "") & idx(i): Next i
+    If n = 0 Then s = "0"                            ' khong chon gi -> danh dau (khong dung mac dinh)
+    TongSelList = s
+End Function
+
+' Nut "BAT DAU XUAT" tren sheet cau hinh
+Public Sub XuatTong_BatDau()
+    Dim ws As Worksheet: Set ws = TongCfgSheet()
+    If ws Is Nothing Then Exit Sub
+    Dim sumPath As String, outF As String, n As Long, rep As String
+    sumPath = Trim$(CStr(ws.Range("C4").Value))
+    If Len(sumPath) = 0 Or Not CreateObject("Scripting.FileSystemObject").FileExists(sumPath) Then
+        If Not XuatTong_PickFile(ws) Then Exit Sub
+        sumPath = Trim$(CStr(ws.Range("C4").Value))
+    End If
+    outF = Trim$(CStr(ws.Range("C5").Value))
+    If Len(outF) = 0 Then outF = Left$(sumPath, InStrRev(sumPath, "\")) & "PDF"
+
+    Dim fromN As Long, toN As Long, dry As Boolean, inclTC As Boolean
+    fromN = CLng(Val(CStr(ws.Range("C6").Value))): If fromN < 1 Then fromN = 1
+    toN = CLng(Val(CStr(ws.Range("C7").Value))): If toN < 0 Then toN = 0
+    inclTC = (LCase$(Left$(Trim$(CStr(ws.Range("C10").Value)), 1)) = "c")
+    dry = (LCase$(Left$(Trim$(CStr(ws.Range("C11").Value)), 1)) = "c")
+
+    Dim s1 As String, sN As String
+    s1 = TongSelList(ws, 3, False)
+    sN = TongSelList(ws, 4, True)
+    If s1 = "0" And sN = "0" Then
+        MsgBox "Chưa chọn sheet nào để in (cột thứ tự đang trống).", vbExclamation, "Xuất PDF theo file tổng hợp"
+        Exit Sub
     End If
 
-    Dim fromN As Long
-    fromN = CLng(Val(InputBox("Chạy từ mục số (số NN đầu tên file PDF).  1 = chạy từ đầu." & vbCrLf & _
-                              "Dùng để chạy tiếp khi lần trước bị ngắt giữa chừng.", _
-                              "Xuất PDF theo file tổng hợp", "1")))
-    If fromN < 1 Then fromN = 1
+    API_SetTongSheets s1, sN
+    API_SetTongTen CStr(ws.Range("C8").Value), CStr(ws.Range("C9").Value)
+    API_SetTongDryRun dry
+    API_SetTongNoDGCT False
+    API_SetTongFilter ""
+
     Application.StatusBar = "Đang xuất PDF theo file tổng hợp ..."
-    n = API_RunTong(sumPath, outF, False, rep, fromN)       ' False = KHONG in cot Tong cong o Gia tong hop
+    n = API_RunTong(sumPath, outF, inclTC, rep, fromN, toN)
     Application.StatusBar = False
+    API_SetTongDryRun False
+    If dry Then
+        MsgBox "Chạy khô xong (không xuất PDF). Danh sách + nguồn từng mục:" & vbCrLf & _
+               outF & "\_THU_TU_XUAT.txt", vbInformation, "Xuất PDF theo file tổng hợp"
+        On Error Resume Next
+        CreateObject("Shell.Application").Open CVar(outF & "\_THU_TU_XUAT.txt")
+        On Error GoTo 0
+        Exit Sub
+    End If
     If n > 0 Then
         MsgBox "Đã xuất " & n & " PDF vào:" & vbCrLf & outF & vbCrLf & vbCrLf & _
                "Thứ tự + nguồn từng mục: _THU_TU_XUAT.txt" & _

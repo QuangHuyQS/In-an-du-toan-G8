@@ -32,13 +32,27 @@ File nguồn nằm ngoài thư mục file tổng → `_NGOAI THU MUC TONG\`.
 - Đóng các file Excel khác đang mở cùng tên, để tool mở được file ở chế độ chỉ đọc.
 
 ## 2. Cách chạy bằng nút trên sheet
-1. Trên sheet của file `.xlsm`, bấm nút xanh **▶ XUẤT PDF THEO FILE TỔNG HỢP**.
-2. Chọn file tổng hợp (tool nhớ lần chọn trước).
-3. Chọn thư mục lưu PDF: Yes = thư mục `PDF` cạnh file tổng, No = chọn thư mục khác.
-4. Nhập "chạy từ mục số NN" (1 = từ đầu; dùng để chạy tiếp khi lần trước bị ngắt).
-5. Chờ xong, tool báo số PDF đã xuất và mở thư mục kết quả.
+1. Trên sheet đầu của file `.xlsm`, bấm nút xanh **▶ XUẤT PDF THEO FILE TỔNG HỢP** → chọn file tổng hợp.
+2. Tool chuyển sang sheet **IN THEO FILE TONG** (cấu hình, được nhớ cho lần sau):
+   | Ô | Ý nghĩa |
+   |---|---|
+   | File tổng hợp | đổi bằng nút *Chọn file tổng hợp…* |
+   | Thư mục lưu PDF | trống = thư mục `PDF` cạnh file tổng |
+   | Chạy từ / đến mục số | chạy tiếp khi bị ngắt, hoặc chạy một đoạn |
+   | Tên dự án in ra | thay dòng `Tên dự án:` ở THKP (mọi khối hạng mục). Trống = giữ như file nguồn |
+   | Tên công trình in ra | thay `Tên công trình:` / `CÔNG TRÌNH :` ở mọi sheet. Trống = giữ |
+   | In cột Tổng cộng | cột Tổng cộng ở Giá tổng hợp |
+   | Chỉ dò link | không xuất PDF, chỉ ghi `_THU_TU_XUAT.txt` để xem trước |
+3. Bảng chọn sheet: mỗi sheet có 2 ô **thứ tự in** — cột *File 1 hạng mục* và cột *File 2, 3… hạng mục*.
+   Để trống = không in; số nhỏ in trước. Mặc định: TH chi phí TB (1), THKP (2), Giá tổng hợp (3),
+   Đơn giá chi tiết (4), Giá tháng (5).
+   - File 1 hạng mục: cả file 1 PDF, chọn được thêm Công trình, Tổng hợp VT, TH chi phí XD.
+   - File nhiều hạng mục: mỗi hạng mục 1 PDF; THKP / Giá tổng hợp / Đơn giá CT / Công trình được tách
+     đúng phần của hạng mục đó; Giá tháng in kèm mọi hạng mục; TH chi phí TB đi kèm hạng mục đầu.
+   - TH chi phí TB chỉ in khi tổng thiết bị khác 0.
+4. Bấm **▶ BẮT ĐẦU XUẤT**. Xong, tool báo số PDF và mở thư mục kết quả.
 
-Nút này **không in cột Tổng cộng** ở Giá tổng hợp.
+Tên dự án / công trình chỉ thay trên bản in — file nguồn mở chỉ đọc, **không bị lưu đè**.
 
 ## 3. Mỗi PDF gồm những gì (theo thứ tự trang)
 TH chi phí TB (chỉ ở hạng mục đầu của file) → THKP hạng mục → Giá tổng hợp → Đơn giá chi tiết → Giá tháng.
@@ -53,6 +67,8 @@ Các tuỳ chọn này hiện chưa có nút, chạy qua COM/PowerShell hoặc t
 API_SetTongFilter "\1. DHKK\"     ' chỉ xuất mục có file nguồn nằm trong thư mục này ("" = tất cả)
 API_SetTongNoDGCT True            ' True = KHÔNG xuất Đơn giá chi tiết
 API_SetTongDryRun True            ' True = chỉ dò link + ghi _THU_TU_XUAT.txt, KHÔNG xuất PDF (xem trước, ~30 giây)
+API_SetTongTen "TÊN DỰ ÁN MỚI", ""  ' tên dự án / tên công trình in ra ("" = giữ nguyên)
+API_SetTongSheets "8,1,2,3,5", "6,1,2,3,5"  ' sheet + thứ tự: file 1 HM (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB) / nhiều HM (1..5 như trên, 6 TB)
 Dim rep As String
 n = API_RunTong("M:\...\0.KSDT DD D.TOAN T.HOP 26.01.2022.xlsx", "M:\...\PDF\KHONG_DGCT", False, rep)
 ```

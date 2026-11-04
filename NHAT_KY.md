@@ -35,6 +35,18 @@ Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.
 - Kết quả chạy đầy đủ vào `PDF_TEST`: 53 mục → 103 mục in, xuất 102 PDF (+ file `_HMk`), 1 mục dùng chung PDF,
   0 lỗi, ~30 phút. File 6 hạng mục (`2c/2d Hoan tra - DZ`) tách đúng từng hạng mục.
 
+## Lần 6 – Tên dự án, chọn sheet in (V6.5, 04/11/2026)
+- TH chi phí TB chỉ in khi tổng thiết bị khác 0 (San nền, Kè… không còn trang TB trống).
+- THKP: bỏ ẩn CỐ ĐỊNH dòng 2, 5, 25 — đã làm mất dòng Tên dự án (khối 1), dòng tiêu đề STT ở file
+  9.1 (tiêu đề ở dòng 5), dòng LÀM TRÒN / Bằng chữ. Nay chỉ ẩn dòng "Thời điểm lập" khi trống.
+- Thay tên dự án / tên công trình khi in (`API_SetTongTen`), áp vào mọi sheet, mọi khối hạng mục, chỉ trong bộ nhớ.
+- Kiểm tra chức năng đổi tên cũ: hàm `ApplyRename` có sẵn nhưng KHÔNG được gọi ở đâu (chết); còn gộp
+  "Tên công trình" vào "Dự án" và đổi nhãn thành "DỰ ÁN:" — không dùng lại, thay bằng `TongApplyNames`.
+- Tên hạng mục ở Giá tổng hợp / Đơn giá CT: mỗi khối hạng mục trong file mẫu (4. TNT, 2c Điện) có tiêu đề
+  riêng; khối 1 lấy `'Công trình'!F6` = hạng mục đầu → in tách theo khối vẫn đúng tên.
+- Sheet cấu hình `IN THEO FILE TONG` + `API_SetTongSheets`: chọn sheet + thứ tự cho file 1 hạng mục / nhiều hạng mục.
+- Thử: TNT (2 HM) chỉ THKP + Giá TH + Giá tháng: 83 → 23 trang.
+
 ## Chưa làm / hạn chế
 - Chưa mở PDF để kiểm tra từng trang (môi trường không có trình xem PDF) – cần người dùng duyệt mẫu.
 - GĐ2–4 chưa làm: THKP còn in cố định `A:H` (mất cột I "Ký hiệu"), tiêu đề lặp `$6:$6`; Giá tháng ẩn cột cố định.

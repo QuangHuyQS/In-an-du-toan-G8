@@ -71,6 +71,10 @@ Public gForcePdf(1 To 20) As String
 Public gTongNoDGCT As Boolean           ' True = KHONG xuat sheet Don gia chi tiet
 Public gTongFilter As String           ' chi xuat cac muc co duong dan file chi tiet chua chuoi nay (rong = tat ca)
 Public gTongDryRun As Boolean           ' True = chi do lien ket, khong xuat PDF
+Public gTongTenDuAn As String           ' thay "Ten du an:" (rong = giu nguyen)
+Public gTongTenCongTrinh As String      ' thay "Ten cong trinh:" / "CONG TRINH :" (rong = giu nguyen)
+Public gTongSel1 As String              ' sheet in cho file 1 hang muc, theo thu tu: idx V3 (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB)
+Public gTongSelN As String              ' sheet in cho file nhieu hang muc, theo thu tu: idx HM (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 TB)
 Public gTongReport As String  ' bao cao lan chay API_RunTong gan nhat (doc qua Application.Run khi goi tu ngoai)
 
 ' --- Xuat theo file tong hop (xem cuoi module) ---
@@ -522,6 +526,72 @@ NextR:
     Next r
 End Sub
 
+' THKP: an dong "Thoi diem lap:" khi khong co noi dung (".", trong). Hien lai dong Ten du an.
+Private Sub THKPHideEmptyRows(ws As Worksheet)
+    Dim lastR As Long, r As Long, up As String, rest As String
+    On Error Resume Next
+    lastR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
+    On Error GoTo 0
+    If lastR > 2000 Then lastR = 2000
+    For r = 1 To lastR
+        up = Trim$(NormUp2(SafeText2(ws, r, 1)))
+        If Left$(up, 9) = "TEN DU AN" Then
+            ws.Rows(r).Hidden = False
+        ElseIf Left$(up, 13) = "THOI DIEM LAP" Then
+            rest = ""
+            If InStr(up, ":") > 0 Then rest = Trim$(Mid$(up, InStr(up, ":") + 1))
+            If rest = "" Or rest = "." Then ws.Rows(r).Hidden = True
+        End If
+    Next r
+End Sub
+
+' Thay ten du an / ten cong trinh o cot A moi sheet (chi trong bo nho - file mo chi doc, khong luu).
+'   "Ten du an: ..."                       -> ten du an moi
+'   "Ten cong trinh: ..." / "CONG TRINH : ..." -> ten cong trinh moi
+' Giu nguyen tien to (phan truoc dau ":"). Rong = khong doi.
+Public Sub TongApplyNames(wbk As Workbook, ByVal duAn As String, ByVal congTrinh As String)
+    duAn = Trim$(duAn): congTrinh = Trim$(congTrinh)
+    If Len(duAn) = 0 And Len(congTrinh) = 0 Then Exit Sub
+    Dim ws As Worksheet, v As Variant, lastR As Long, r As Long
+    Dim t As String, up As String, p As Long, newV As String
+    For Each ws In wbk.Worksheets
+        If ws.Visible = xlSheetVisible Or InStr(NormUp2(ws.Name), "GIA THANG") > 0 Then
+            On Error Resume Next
+            lastR = 0
+            lastR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
+            On Error GoTo 0
+            If lastR > 6000 Then lastR = 6000
+            If lastR >= 1 Then
+                If lastR = 1 Then
+                    ReDim v(1 To 1, 1 To 1): v(1, 1) = ws.Cells(1, 1).Value2
+                Else
+                    v = ws.Range(ws.Cells(1, 1), ws.Cells(lastR, 1)).Value2
+                End If
+                For r = 1 To lastR
+                    If VarType(v(r, 1)) = vbString Then
+                        t = CStr(v(r, 1))
+                        p = InStr(t, ":")
+                        If p > 0 And p < 30 Then
+                            up = Trim$(NormUp2(Left$(t, p - 1)))
+                            newV = ""
+                            If Len(duAn) > 0 And (up = "TEN DU AN" Or up = "DU AN") Then
+                                newV = RTrim$(Left$(t, p)) & " " & duAn
+                            ElseIf Len(congTrinh) > 0 And (up = "TEN CONG TRINH" Or up = "CONG TRINH") Then
+                                newV = RTrim$(Left$(t, p)) & " " & congTrinh
+                            End If
+                            If Len(newV) > 0 Then
+                                On Error Resume Next
+                                ws.Cells(r, 1).Value = newV
+                                On Error GoTo 0
+                            End If
+                        End If
+                    End If
+                Next r
+            End If
+        End If
+    Next ws
+End Sub
+
 Private Function IsDuAnLabel(norm As String) As Boolean
     IsDuAnLabel = (Left(norm, 5) = "du an") _
         Or (Left(norm, 8) = "ten du an") _
@@ -756,11 +826,11 @@ Private Sub PrepareSheetForPrint(idx As Integer, ws As Worksheet)
     On Error GoTo 0
 
     Select Case idx
-    Case 1 ' THKP hang muc: an dong 2,5,25 + an cot thua E,F,G (He so)
+    Case 1 ' THKP hang muc: an dong "Thoi diem lap" trong + an cot thua E,F,G (He so)
+        ' (V6.5: truoc day an CO DINH dong 2,5,25 -> mat dong Ten du an, tieu de STT (file
+        '  tieu de o dong 5), LAM TRON / Bang chu. Nay an theo NOI DUNG, giu dong Ten du an.)
         On Error Resume Next
-        ws.Rows("2:2").Hidden = True
-        ws.Rows("5:5").Hidden = True
-        ws.Rows("25:25").Hidden = True
+        THKPHideEmptyRows ws
         ' An cac cot thua giua "Cach tinh" (D) va "Gia tri" (H): E, F, G
         ws.Columns("E:G").Hidden = True
         On Error GoTo 0
@@ -3563,6 +3633,7 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
         For i = 1 To nJIn: mTJ(jIdxIn(i)).Note = "Khong mo duoc file: " & path: Next i
         Exit Sub
     End If
+    TongApplyNames wbk, gTongTenDuAn, gTongTenCongTrinh
 
     ' ---- muc TB / RAW: moi sheet 1 PDF ; cung sheet -> chung PDF ----
     Dim jIdx() As Long, nJ As Long
@@ -3646,14 +3717,26 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
             For a = 1 To MAX_HM
                 For b = 1 To HM_SHEET_COUNT: gSelN(b, a) = False: Next b
             Next a
+            ' sheet + thu tu theo cau hinh (mac dinh: TB, THKP, Gia TH, DGCT, Gia thang)
+            Dim selIds() As Integer, nSel As Integer, sp As Integer, hasTB As Boolean
+            nSel = TongParseSel(gTongSelN, "6,1,2,3,5", HM_SHEET_COUNT, selIds)
+            For b = 1 To HM_SHEET_COUNT: gOrderN(b) = 99: Next b
+            For sp = 1 To nSel: gOrderN(selIds(sp)) = sp: Next sp
             For i = 1 To nL
                 hm = lstHm(i)
-                gSelN(1, hm) = True: gSelN(2, hm) = True: gSelN(3, hm) = Not gTongNoDGCT
-                gSelN(5, hm) = True               ' Gia thang -> di kem MOI hang muc
+                For sp = 1 To nSel
+                    Select Case selIds(sp)
+                        Case 6                    ' TH chi phi TB: chi hang muc dau, ben duoi
+                        Case 3: gSelN(3, hm) = Not gTongNoDGCT
+                        Case Else: gSelN(selIds(sp), hm) = True   ' Gia thang (5) -> di kem MOI hang muc
+                    End Select
+                Next sp
                 gForcePdf(hm) = lstPdf(i)
             Next i
-            gSelN(6, lstHm(1)) = TongTBHasData(wbk)   ' TH chi phi TB -> hang muc dau (chi khi co thiet bi)
-            gOrderN(6) = 1: gOrderN(1) = 2: gOrderN(2) = 3: gOrderN(3) = 4: gOrderN(5) = 5: gOrderN(4) = 99
+            For sp = 1 To nSel
+                If selIds(sp) = 6 Then hasTB = True
+            Next sp
+            If hasTB Then gSelN(6, lstHm(1)) = TongTBHasData(wbk)   ' chi khi co thiet bi
             gHM_XuatKieu = "TACH"
             gHM_TenTheoHM = False
 
@@ -3682,11 +3765,14 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
         For k = 1 To SHEET_COUNT
             gSelSheet(k) = False: gOrder(k) = 99
         Next k
-        gSelSheet(8) = TongTBHasData(wbk): gOrder(8) = 1   ' TH chi phi TB (chi khi co thiet bi)
-        gSelSheet(1) = True: gOrder(1) = 2      ' THKP
-        gSelSheet(2) = True: gOrder(2) = 3      ' Gia tong hop
-        gSelSheet(3) = Not gTongNoDGCT: gOrder(3) = 4      ' Don gia chi tiet
-        gSelSheet(5) = True: gOrder(5) = 5      ' Gia thang
+        ' sheet + thu tu theo cau hinh (mac dinh: TB, THKP, Gia TH, DGCT, Gia thang)
+        Dim sel1() As Integer, nS1 As Integer, s1 As Integer
+        nS1 = TongParseSel(gTongSel1, "8,1,2,3,5", SHEET_COUNT, sel1)
+        For s1 = 1 To nS1
+            gSelSheet(sel1(s1)) = True: gOrder(sel1(s1)) = s1
+        Next s1
+        If gSelSheet(8) Then gSelSheet(8) = TongTBHasData(wbk)    ' TH chi phi TB chi khi co thiet bi
+        If gTongNoDGCT Then gSelSheet(3) = False
         Dim okE As Boolean
         okE = AlignAndExportOneWorkbook(wbk, "PDF", mTJ(first).OutPdf)
         mTJ(first).Done = okE And FileExists2(mTJ(first).OutPdf)
@@ -3726,6 +3812,43 @@ End Sub
 Public Sub API_SetTongNoDGCT(ByVal b As Boolean)
     gTongNoDGCT = b
 End Sub
+
+' Ten du an / ten cong trinh in ra (rong = giu nguyen nhu file nguon)
+Public Sub API_SetTongTen(ByVal duAn As String, ByVal congTrinh As String)
+    gTongTenDuAn = duAn: gTongTenCongTrinh = congTrinh
+End Sub
+
+' Sheet can in, theo thu tu, dang "8,1,2,3,5" (rong = mac dinh)
+'   sel1 (file 1 hang muc)    : 1 THKP, 2 Gia tong hop, 3 Don gia CT, 4 Cong trinh, 5 Gia thang,
+'                               6 Tong hop VT, 7 TH chi phi XD, 8 TH chi phi TB
+'   selN (file nhieu hang muc): 1 THKP, 2 Gia tong hop, 3 Don gia CT, 4 Cong trinh, 5 Gia thang,
+'                               6 TH chi phi TB (di kem hang muc dau)
+' TH chi phi TB chi in khi co thiet bi (tong khac 0).
+Public Sub API_SetTongSheets(ByVal sel1 As String, ByVal selN As String)
+    gTongSel1 = sel1: gTongSelN = selN
+End Sub
+
+' "8,1,2" -> mang thu tu cac idx hop le (1..maxIdx), bo trung
+Private Function TongParseSel(ByVal s As String, ByVal def As String, ByVal maxIdx As Integer, ByRef ids() As Integer) As Integer
+    Dim parts() As String, i As Integer, n As Integer, k As Integer, j As Integer, dup As Boolean
+    If Len(Trim$(s)) = 0 Then s = def
+    s = Replace(Replace(s, ";", ","), " ", "")
+    parts = Split(s, ",")
+    ReDim ids(1 To maxIdx)
+    For i = LBound(parts) To UBound(parts)
+        If IsNumeric(parts(i)) And Len(parts(i)) > 0 Then
+            k = CInt(parts(i))
+            If k >= 1 And k <= maxIdx And n < maxIdx Then
+                dup = False
+                For j = 1 To n
+                    If ids(j) = k Then dup = True
+                Next j
+                If Not dup Then n = n + 1: ids(n) = k
+            End If
+        End If
+    Next i
+    TongParseSel = n
+End Function
 
 ' True = chi do lien ket + ghi bao cao, KHONG xuat PDF (xem truoc danh sach)
 Public Sub API_SetTongDryRun(ByVal b As Boolean)
