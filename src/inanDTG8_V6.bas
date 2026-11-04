@@ -3106,8 +3106,48 @@ Public Function API_Detect(wb As Workbook, ByRef nHM As Integer, ByRef names() A
     If DetectTwoHangMuc(wb) Then nHM = gHMCount Else nHM = 0
     On Error GoTo 0
     For k = 1 To nHM: names(k) = gHMNames(k): Next k
+    ShortenHmNames names, nHM          ' chi de HIEN THI tren form (gHMNames giu ten day du)
     If nHM >= 2 Then API_Detect = n2 Else API_Detect = n1
 End Function
+
+' Kiem tra nhanh (goi qua Application.Run): ten hang muc nhu form se hien, ngan cach " | "
+Public Function TongTestHmNames(wb As Workbook) As String
+    Dim nHM As Integer, nm() As String, e1() As Boolean, e2() As Boolean, k As Integer, s As String
+    API_Detect wb, nHM, nm, e1, e2
+    For k = 1 To nHM: s = s & IIf(k > 1, " | ", "") & k & ". " & nm(k): Next k
+    TongTestHmNames = s
+End Function
+
+' Ten hang muc tren form bi cat (o ten hep) -> neu cac ten co chung phan dau (vd "CAP DIEN MOI - TRAM BIEN AP - ")
+' thi bo phan chung, hien "...<phan khac nhau>" de biet hang muc nao la 1, 2...
+' Cat o ranh gioi " - " / khoang trang; chi lam khi phan chung >= 8 ky tu va moi ten con lai khong rong.
+Private Sub ShortenHmNames(names() As String, ByVal n As Integer)
+    If n < 2 Then Exit Sub
+    Dim pre As String, k As Integer, i As Long, cut As Long
+    pre = names(1)
+    For k = 2 To n
+        i = 0
+        Do While i < Len(pre) And i < Len(names(k))
+            If StrComp(Mid$(pre, i + 1, 1), Mid$(names(k), i + 1, 1), vbTextCompare) <> 0 Then Exit Do
+            i = i + 1
+        Loop
+        pre = Left$(pre, i)
+    Next k
+    ' lui ve ranh gioi tu: sau " - " gan nhat, neu khong co thi sau khoang trang gan nhat
+    cut = InStrRev(pre, " - ")
+    If cut > 0 Then
+        cut = cut + 2
+    Else
+        cut = InStrRev(pre, " ")
+    End If
+    If cut < 8 Then Exit Sub
+    For k = 1 To n
+        If Len(Trim$(Mid$(names(k), cut + 1))) = 0 Then Exit Sub
+    Next k
+    For k = 1 To n
+        names(k) = ChrW$(8230) & Trim$(Mid$(names(k), cut + 1))
+    Next k
+End Sub
 
 ' In / can chinh 1 file 1 HANG MUC dang mo.
 ' Can nap truoc: gSelSheet, gOrder, gGiaTongHopInTongCong, gOutFolder1
