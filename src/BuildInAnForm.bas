@@ -157,7 +157,7 @@ Private Sub BuildTongCfgSheet()
         .Value = "XUẤT PDF THEO FILE TỔNG HỢP — CẤU HÌNH"
         .Font.Size = 14: .Font.Bold = True: .Font.Color = ClrOrange()
     End With
-    ws.Range("B3").Value = "Chọn file tổng → chọn sheet cần in + tên dự án → bấm BẮT ĐẦU XUẤT. Các ô trắng được nhớ cho lần sau."
+    ws.Range("B3").Value = "Ô Tên dự án, Tên công trình, Viết HOA, Giá tháng ẩn Mã số (C8, C9, C12, C13) dùng CHUNG cho cả FORM in ấn dự toán. Các ô trắng được nhớ cho lần sau."
     ws.Range("B3").Font.Color = RGB(100, 116, 139)
 
     Dim lbls As Variant, i As Long

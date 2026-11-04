@@ -226,6 +226,12 @@ Private Function AlignAndExportOneWorkbook(wbk As Workbook, act As String, pdfPa
     If Not foundAny Then AlignAndExportOneWorkbook = False: Exit Function
     If Not gTongShowZeros Then TongSetDisplayZeros wbk, False    ' mac dinh: o gia tri 0 in ra de trong
     TongHideBangChu wbk                                        ' mac dinh: an dong Bang chu
+    ' Dung chung cho form + file tong: ten du an / cong trinh, viet HOA THKP, bo TH chi phi TB trong
+    TongApplyNames wbk, gTongTenDuAn, gTongTenCongTrinh
+    If gSelSheet(1) And Not gTongNoUpper Then TongUpperTHKP wbk
+    If gSelSheet(8) And Not ws(8) Is Nothing Then
+        If Not TongTBHasData(wbk) Then Set ws(8) = Nothing      ' TB toan so 0 -> khong in
+    End If
 
     ' QUAN TRONG: mot so phien ban Excel bao loi 1004 khi Select/Activate sheet
     ' luc ScreenUpdating=False va workbook vua moi mo. Bat tam ScreenUpdating
@@ -1744,6 +1750,12 @@ Private Function ProcessWorkbookNHM(wb As Workbook, ByRef outFiles() As String, 
     For k = 1 To HM_SHEET_COUNT
         Set ws(k) = Find2Sheet(wb, k)
     Next k
+    ' Dung chung cho form + file tong: ten du an / cong trinh, viet HOA THKP, bo TH chi phi TB trong
+    TongApplyNames wb, gTongTenDuAn, gTongTenCongTrinh
+    If Not gTongNoUpper Then TongUpperTHKP wb
+    If Not ws(6) Is Nothing Then
+        If Not TongTBHasData(wb) Then Set ws(6) = Nothing       ' TB toan so 0 -> khong in
+    End If
 
     Dim folder As String, baseName As String
     If Len(gHM_OutFolder) > 0 Then
@@ -3076,6 +3088,7 @@ End Function
 Public Function API_Run1HM(wb As Workbook, act As String, ByRef msg As String) As Boolean
     API_Run1HM = False
     msg = ""
+    TongLoadUiOptions                ' ten du an / viet HOA / an Ma so tu sheet IN THEO FILE TONG
     If CountSelected() = 0 Then msg = "Chua chon sheet nao.": Exit Function
 
     Dim pdfPath As String
@@ -3118,6 +3131,7 @@ End Function
 Public Function API_RunNHM(wb As Workbook, ByRef msg As String) As Boolean
     API_RunNHM = False
     msg = ""
+    TongLoadUiOptions
     If gHMCount < 2 Then msg = "File khong co nhieu khoi HANG MUC.": Exit Function
     If Len(OutFolderFor(wb, gHM_OutFolder)) = 0 Then msg = "File chua duoc luu - hay chon thu muc luu PDF.": Exit Function
 
@@ -3152,6 +3166,7 @@ Public Function API_ProcessFile(path As String, isPDF As Boolean, _
         ByRef kind As Integer, ByRef msg As String) As Boolean
     API_ProcessFile = False
     kind = 0: msg = ""
+    TongLoadUiOptions
     If StrComp(path, ThisWorkbook.FullName, vbTextCompare) = 0 Then
         msg = "Bo qua (file tong)."
         Exit Function
@@ -4002,6 +4017,30 @@ End Sub
 ' True = giu dong "Bang chu" (mac dinh: an)
 Public Sub API_SetGiuBangChu(ByVal b As Boolean)
     gTongKeepBangChu = b
+End Sub
+
+' Chon sheet cho nhanh 1 hang muc (thay cho tick tren form) - dung khi goi tu ngoai / tu dong hoa.
+'   sel: "8,1,2,3,5" (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB) ; outFolder: thu muc luu PDF ("" = canh file)
+Public Sub API_SetSel1(ByVal sel As String, Optional ByVal outFolder As String = "")
+    Dim ids() As Integer, n As Integer, k As Integer
+    n = TongParseSel(sel, "8,1,2,3,5", SHEET_COUNT, ids)
+    For k = 1 To SHEET_COUNT: gSelSheet(k) = False: gOrder(k) = 99: Next k
+    For k = 1 To n: gSelSheet(ids(k)) = True: gOrder(ids(k)) = k: Next k
+    gOutFolder1 = outFolder
+End Sub
+
+' Doc tuy chon dung chung tu sheet "IN THEO FILE TONG" cua tool (form in an goi truoc moi lan chay):
+'   C8 ten du an, C9 ten cong trinh, C12 viet HOA dong ten THKP, C13 Gia thang an Ma so
+Public Sub TongLoadUiOptions()
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets("IN THEO FILE TONG")
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Sub
+    gTongTenDuAn = Trim$(CStr(ws.Range("C8").Value))
+    gTongTenCongTrinh = Trim$(CStr(ws.Range("C9").Value))
+    gTongNoUpper = (LCase$(Left$(Trim$(CStr(ws.Range("C12").Value)), 1)) = "k")
+    gGTShowMaSo = (LCase$(Left$(Trim$(CStr(ws.Range("C13").Value)), 1)) = "k")
 End Sub
 
 ' True (mac dinh) = Gia thang an cot Ma so
