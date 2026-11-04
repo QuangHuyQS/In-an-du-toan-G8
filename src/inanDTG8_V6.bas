@@ -528,6 +528,52 @@ NextR:
     Next r
 End Sub
 
+' THKP: nhan form theo DONG TIEU DE (V6.5 GD2) thay vi co dinh $6:$6 / A:H.
+'   hdrRow  = dong dau tien trong [r1, r2] co cot A = "STT"   (0 = khong thay)
+'   lastCol = cot cuoi co chu tren dong tieu de, toi thieu H (8)
+'     form .xls DM38 : ... G "HE SO" | H "GIA TRI" | I "KY HIEU"  -> I
+'     form .xlsx     : C "Ky hieu" ... H "Gia tri"                -> H
+Public Sub THKPLayout(ws As Worksheet, ByVal r1 As Long, ByVal r2 As Long, ByRef hdrRow As Long, ByRef lastCol As Long)
+    Dim r As Long, c As Long
+    hdrRow = 0: lastCol = 8
+    If r1 < 1 Then r1 = 1
+    For r = r1 To r2
+        If UCase$(Trim$(SafeText2(ws, r, 1))) = "STT" Then hdrRow = r: Exit For
+    Next r
+    If hdrRow = 0 Then Exit Sub
+    For c = 15 To 9 Step -1
+        If Len(Trim$(SafeText2(ws, hdrRow, c))) > 0 Then lastCol = c: Exit For
+    Next c
+End Sub
+
+' Kiem tra nhanh (goi tu ngoai qua Application.Run): "hdr=6 lastCol=I header=..."
+Public Function TongTestLayout(ws As Worksheet, ByVal r1 As Long, ByVal r2 As Long) As String
+    Dim h As Long, c As Long
+    THKPLayout ws, r1, r2, h, c
+    TongTestLayout = "hdr=" & h & " lastCol=" & ColL(c) & " (" & SafeText2(ws, h, c) & ")" & _
+        "  bangChuDen=" & THKPExtendBangChu(ws, GetLastRowWithBorder(ws, IIf(h > 0, h, 6), ColL(c)))
+End Function
+
+' So cot -> chu cot (1 -> A, 9 -> I, 27 -> AA)
+Public Function ColL(ByVal c As Long) As String
+    Dim s As String
+    If c < 1 Then c = 1
+    Do While c > 0
+        s = Chr$(65 + ((c - 1) Mod 26)) & s
+        c = (c - 1) \ 26
+    Loop
+    ColL = s
+End Function
+
+' THKP: neu ngay duoi dong cuoi bang co dong "Bang chu: ..." thi lay ca dong do vao vung in
+Public Function THKPExtendBangChu(ws As Worksheet, ByVal lastRow As Long) As Long
+    Dim r As Long
+    THKPExtendBangChu = lastRow
+    For r = lastRow + 1 To lastRow + 2
+        If Left$(Trim$(NormUp2(SafeText2(ws, r, 1))), 8) = "BANG CHU" Then THKPExtendBangChu = r: Exit Function
+    Next r
+End Function
+
 ' THKP: an dong "Thoi diem lap:" khi khong co noi dung (".", trong). Hien lai dong Ten du an.
 Private Sub THKPHideEmptyRows(ws As Worksheet)
     Dim lastR As Long, r As Long, up As String, rest As String
@@ -979,10 +1025,14 @@ Private Sub ApplySettingsToWorksheet(idx As Integer, ws As Worksheet)
         .AlignMarginsHeaderFooter       = True
 
         Select Case idx
-        Case 1 ' THKP hang muc - Ngang
-            lastRow = GetLastRowWithBorder(ws, 6, "H")
-            .PrintArea         = "$A$1:$H$" & lastRow
-            titleRowsStr       = "$6:$6"
+        Case 1 ' THKP hang muc - Ngang (dong tieu de + cot cuoi nhan theo noi dung - GD2)
+            Dim kpHdr As Long, kpCol As Long
+            THKPLayout ws, 1, 40, kpHdr, kpCol
+            If kpHdr = 0 Then kpHdr = 6
+            lastRow = GetLastRowWithBorder(ws, kpHdr, ColL(kpCol))
+            lastRow = THKPExtendBangChu(ws, lastRow)
+            .PrintArea         = "$A$1:$" & ColL(kpCol) & "$" & lastRow
+            titleRowsStr       = "$" & kpHdr & ":$" & kpHdr
             .Orientation       = xlLandscape
 
         Case 2 ' Gia tong hop - Ngang
@@ -2461,7 +2511,10 @@ Private Sub ApplyPageSetup2(idx As Integer, ws As Worksheet, hm As Integer)
 
     ' Cot cuoi vung in theo tung loai sheet
     Select Case idx
-        Case 1: endCol = "H"                                   ' THKP
+        Case 1                                                 ' THKP: cot cuoi theo dong tieu de cua khoi (H hoac I)
+            Dim kpH As Long, kpC As Long
+            THKPLayout ws, paTop, paBottom, kpH, kpC
+            endCol = ColL(kpC)
         Case 2: endCol = IIf(gGTH_InTongCong2, "L", "K")       ' Gia tong hop
         Case 3: endCol = "H"                                   ' Don gia chi tiet
         Case 4: endCol = "P"                                   ' Cong trinh
