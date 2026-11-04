@@ -23,7 +23,20 @@ Dự án: xuất PDF dự toán theo `…\231108_KSDT_MEP_Du toan den ngay 17.3.
 ## Lần 4 – Đưa lên GitHub
 - Cài Git 2.56 và GitHub CLI 2.103.3, đăng nhập `gh`, tạo repo public `tonghang0111-rgb/In-an-G8`, đẩy 11 file (mã nguồn, build script, bản V6.4).
 
+## Lần 5 – GĐ1: link nhiều cấp + thư mục con (V6.5, 04/11/2026)
+Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.xlsx` (sheet `XD TB`, cột H, 53 dòng link).
+- Phân tích: V6.4 chỉ đọc cột F/E của dòng trong file trung gian nên bỏ toàn bộ mục đi qua ô
+  `SUBTOTAL`/`SUM` (Điện, TXLNT, trạm bơm, cảnh quan) và mục link vào `TH chi phí TB`/sheet báo giá.
+- Viết lại phần xuất theo file tổng: đọc đúng ô được link, đi xuống `SUBTOTAL`/`SUM`/`+` tới 6 cấp,
+  phân loại THKP / TH chi phí TB / TH chi phí XD (theo tên hạng mục) / in nguyên sheet.
+- 1 dòng file tổng → nhiều PDF `NN.kk_`; link vào dòng tổng của file nhiều hạng mục → `_HMk.pdf`.
+- PDF đặt trong thư mục con giống thư mục nguồn (`6. TH Dien\`, `TXLNT LUONG TAI\Excel\`, …).
+- Thêm `API_SetTongDryRun` (chỉ dò link, ~15–30 giây).
+- Kết quả chạy đầy đủ vào `PDF_TEST`: 53 mục → 103 mục in, xuất 102 PDF (+ file `_HMk`), 1 mục dùng chung PDF,
+  0 lỗi, ~30 phút. File 6 hạng mục (`2c/2d Hoan tra - DZ`) tách đúng từng hạng mục.
+
 ## Chưa làm / hạn chế
 - Chưa mở PDF để kiểm tra từng trang (môi trường không có trình xem PDF) – cần người dùng duyệt mẫu.
+- GĐ2–4 chưa làm: THKP còn in cố định `A:H` (mất cột I "Ký hiệu"), tiêu đề lặp `$6:$6`; Giá tháng ẩn cột cố định.
 - Tuỳ chọn bỏ Đơn giá chi tiết và lọc theo thư mục chưa có nút trên giao diện.
 - Form `frmInDuToan` giữ nguyên (VBE Designer báo lỗi 75 khi dựng lại bằng code).

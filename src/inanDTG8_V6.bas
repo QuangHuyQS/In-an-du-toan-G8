@@ -70,7 +70,8 @@ Public gOutFolder1 As String
 Public gForcePdf(1 To 20) As String
 Public gTongNoDGCT As Boolean           ' True = KHONG xuat sheet Don gia chi tiet
 Public gTongFilter As String           ' chi xuat cac muc co duong dan file chi tiet chua chuoi nay (rong = tat ca)
-Public gTongReport As String   ' bao cao lan chay API_RunTong gan nhat (doc qua Application.Run khi goi tu ngoai)
+Public gTongDryRun As Boolean           ' True = chi do lien ket, khong xuat PDF
+Public gTongReport As String  ' bao cao lan chay API_RunTong gan nhat (doc qua Application.Run khi goi tu ngoai)
 
 ' --- Xuat theo file tong hop (xem cuoi module) ---
 Private Type TongJob
@@ -82,14 +83,28 @@ Private Type TongJob
     ThkpRow As Long      ' dong tren sheet THKP (0 = chua biet)
     Hm As Integer        ' hang muc (1..gHMCount) ; 0 = file 1 hang muc
     OutPdf As String
-    DupOf As Long        ' > 0: da xuat chung trong PDF cua muc nay
+    DupOf As Long        ' > 0: chi so (trong mTJ) cua muc da xuat chung PDF
     Done As Boolean
     Note As String       ' ly do bo qua / canh bao
+    Tag As String        ' "NN" hoac "NN.kk" (muc con khi 1 dong file tong tach ra nhieu file)
+    Kind As Integer      ' TJ_THKP / TJ_TB / TJ_RAW
+    SheetNm As String    ' sheet dich (TJ_TB, TJ_RAW)
+    HmName As String     ' ten hang muc doc o dong duoc tro toi ('TH chi phi XD') khi khong co dong THKP
 End Type
+
+Private Const TJ_THKP As Integer = 0   ' file du toan: THKP -> Gia TH -> DGCT -> Gia thang
+Private Const TJ_TB As Integer = 1     ' file du toan, lien ket vao 'TH chi phi TB': chi in sheet do
+Private Const TJ_RAW As Integer = 2    ' sheet khong chuan (bao gia, bang tong hop...): in nguyen sheet
 
 Private mTJ() As TongJob
 Private mTN As Long
 Private mTRx As Object
+Private mIRx As Object
+Private mVis As Object
+Private mCurTop As Long
+Private mCurLabel As String
+Private mCurSumRow As Long
+Private mWalkBudget As Long
 Private mMidWb() As Workbook
 Private mMidOwn() As Boolean
 Private mMidKey() As String
@@ -3074,37 +3089,100 @@ Private Function JoinOuts(outs() As String, n As Integer) As String
 End Function
 
 ' ================================================================
-' ======  XUAT PDF THEO FILE TONG HOP (V6.2)  ====================
+' ======  XUAT PDF THEO FILE TONG HOP (V6.5)  ====================
 ' ================================================================
-' Doc file tong hop (vd "0.KSDT DD D.TOAN T.HOP"), moi dong la 1 cong thuc
-' lien ket:  file tong -> file trung gian (TH HVAC / TH-E / TH-ELV / TH CTN)
-'            -> file du toan chi tiet, o 'THKP hang muc'!$H$<dong>.
-' Dong <dong> cho biet HANG MUC nao (khoi nao cua sheet THKP) trong file
-' chi tiet. Moi (file chi tiet, hang muc) xuat 1 PDF, dat ten
-'   <NN>_<nhan STT>_<ten hang muc>.pdf     (NN = thu tu dong trong file tong)
-' nen sap theo ten la ra dung thu tu file tong. Ket qua: 5 sheet theo thu
-' tu  TH chi phi TB -> THKP -> Gia tong hop -> Don gia CT -> Gia thang.
-'   (TH chi phi TB di kem hang muc DAU, Gia thang di kem hang muc CUOI
-'    trong tung file chi tiet - dung quy uoc cua tool.)
-' Cung hang muc xuat hien 2 lan trong file tong (vd B.1 mua sam + B.2 lap
-' dat) chi xuat 1 PDF, duoc ghi chu trong bao cao.
+' Doc file tong hop, moi dong co cong thuc lien ket ra file khac la 1 MUC.
+' Tu o lien ket, di theo tung cap:
+'   - Sheet 'THKP hang muc' cua file chi tiet  -> muc in du toan (TJ_THKP),
+'     dong THKP cho biet HANG MUC nao.
+'   - Sheet khac cua 1 file du toan (co sheet THKP):
+'       'TH chi phi TB' -> chi in sheet TB (TJ_TB)
+'       'TH chi phi XD' / sheet khac -> in ca file du toan (TJ_THKP, dong 0)
+'   - File trung gian (khong co THKP): doc DUNG o duoc tro toi
+'       + o co lien ket ngoai  -> di tiep theo tung lien ket
+'       + o la SUBTOTAL/SUM/+ cac o cung sheet -> di xuong tung o con
+'         (SUBTOTAL bo qua o con cung la SUBTOTAL, dung nhu Excel)
+'       + khong co lien ket nao xuong duoi -> sheet do la ban chi tiet,
+'         in nguyen sheet (TJ_RAW) - vd bang bao gia thiet bi
+' 1 dong file tong co the ra nhieu PDF: dat ten NN.01_, NN.02_...
+' PDF duoc dat vao THU MUC CON giong cau truc thu muc cua file nguon
+' (tinh tu thu muc file tong), nguoi dung tu ghep theo thu muc.
 ' ================================================================
-' Tach tham chieu ngoai dang 'D:\thu muc\[file.xls]Sheet'!$F$13
-Private Function TongParseRef(f As String, ByRef fullPath As String, ByRef shName As String, _
-        ByRef rw As Long) As Boolean
-    TongParseRef = False
-    If InStr(f, "[") = 0 Then Exit Function
+
+Private Function TongRx() As Object
     If mTRx Is Nothing Then
         Set mTRx = CreateObject("VBScript.RegExp")
-        mTRx.Pattern = "'([^']*)\[([^\]]+)\]([^']+)'!\$?[A-Za-z]{1,3}\$?([0-9]+)"
+        mTRx.Global = True
+        mTRx.IgnoreCase = True
+        ' 'D:\thu muc\[file.xls]Sheet'!$F$13   hoac   [file.xls]Sheet1!F13 (file dang mo, ten khong dau cach)
+        mTRx.Pattern = "(?:'([^']*)\[([^\]]+)\]([^']+)'|\[([^\]]+)\]([A-Za-z0-9_\.]+))!\$?([A-Za-z]{1,3})\$?([0-9]+)"
     End If
+    Set TongRx = mTRx
+End Function
+
+' Tham chieu noi bo: A1, $A$1, A1:B5 (khong co ten sheet dung truoc)
+Private Function TongIRx() As Object
+    If mIRx Is Nothing Then
+        Set mIRx = CreateObject("VBScript.RegExp")
+        mIRx.Global = True
+        mIRx.IgnoreCase = True
+        mIRx.Pattern = "(^|[^A-Za-z0-9_!'\]\.\$:])\$?([A-Za-z]{1,3})\$?([0-9]{1,7})(:\$?([A-Za-z]{1,3})\$?([0-9]{1,7}))?"
+    End If
+    Set TongIRx = mIRx
+End Function
+
+Private Function TongColNum(ByVal a As String) As Long
+    Dim i As Long, n As Long
+    a = UCase$(a)
+    For i = 1 To Len(a)
+        n = n * 26 + (Asc(Mid$(a, i, 1)) - 64)
+    Next i
+    TongColNum = n
+End Function
+
+' Lay (duong dan, sheet, dong, cot) tu 1 match cua TongRx.
+' baseWb: workbook chua cong thuc - de bu duong dan khi file dich dang mo
+' (Excel bo duong dan trong cong thuc khi file lien ket dang mo).
+Private Function TongRefFromMatch(m As Object, baseWb As Workbook, ByRef fullPath As String, _
+        ByRef shName As String, ByRef rw As Long, ByRef col As Long) As Boolean
+    TongRefFromMatch = False
+    Dim d As String, f As String
+    If Len(CStr(m.SubMatches(1))) > 0 Then
+        d = CStr(m.SubMatches(0)): f = CStr(m.SubMatches(1)): shName = CStr(m.SubMatches(2))
+    Else
+        d = "": f = CStr(m.SubMatches(3)): shName = CStr(m.SubMatches(4))
+    End If
+    If Len(f) = 0 Then Exit Function
+    If Len(d) = 0 Then
+        Dim w As Workbook
+        On Error Resume Next
+        Set w = Application.Workbooks(f)
+        On Error GoTo 0
+        If Not w Is Nothing Then
+            fullPath = w.FullName
+        ElseIf Not baseWb Is Nothing Then
+            fullPath = GetFolder2(baseWb.FullName) & f
+        Else
+            fullPath = f
+        End If
+    Else
+        fullPath = d & f
+    End If
+    shName = Replace(shName, "''", "'")
+    col = TongColNum(CStr(m.SubMatches(5)))
+    rw = CLng(m.SubMatches(6))
+    TongRefFromMatch = True
+End Function
+
+' Tach tham chieu ngoai dau tien trong cong thuc
+Private Function TongParseRef(f As String, ByRef fullPath As String, ByRef shName As String, _
+        ByRef rw As Long, ByRef col As Long, Optional baseWb As Workbook = Nothing) As Boolean
+    TongParseRef = False
+    If InStr(f, "[") = 0 Then Exit Function
     Dim m As Object
-    Set m = mTRx.Execute(f)
+    Set m = TongRx().Execute(f)
     If m.Count = 0 Then Exit Function
-    fullPath = m(0).SubMatches(0) & m(0).SubMatches(1)
-    shName = m(0).SubMatches(2)
-    rw = CLng(m(0).SubMatches(3))
-    TongParseRef = True
+    TongParseRef = TongRefFromMatch(m(0), baseWb, fullPath, shName, rw, col)
 End Function
 
 Private Function TongOpenWb(p As String, ByRef openedHere As Boolean) As Workbook
@@ -3120,7 +3198,7 @@ Private Function TongOpenWb(p As String, ByRef openedHere As Boolean) As Workboo
     openedHere = Not (TongOpenWb Is Nothing)
 End Function
 
-' File trung gian: mo 1 lan, giu den het lan chay (file nho)
+' File trung gian: mo 1 lan, giu den het lan chay
 Private Function TongMidWb(p As String) As Workbook
     Dim i As Long, own As Boolean, w As Workbook
     For i = 1 To mMidN
@@ -3181,44 +3259,199 @@ Private Function TongIsPartHdr(a As String) As Boolean
     TongIsPartHdr = (a Like "[A-Z]") Or (a Like "[A-Z].#")
 End Function
 
-' Tu o lien ket cua file tong -> (file chi tiet, dong THKP)
-Private Function TongResolve(idx As Long, midPath As String, sh As String, rw As Long) As Boolean
-    TongResolve = False
+' File du toan = co sheet THKP
+Private Function TongIsDuToan(w As Workbook) As Boolean
+    Dim s As Worksheet
+    For Each s In w.Worksheets
+        If InStr(NormUp2(s.Name), "THKP") > 0 Then TongIsDuToan = True: Exit Function
+    Next s
+End Function
+
+' Ten muc con: chu o cot B cua dong (bo trong / so) ; khong co thi dung ten cha
+Private Function TongRowName(ws As Worksheet, r As Long, fallback As String) As String
+    Dim t As String
+    On Error Resume Next
+    t = Trim$(Replace(Replace(CStr(ws.Cells(r, 2).Text), vbLf, " "), vbCr, " "))
+    On Error GoTo 0
+    If Len(t) = 0 Or IsNumeric(t) Then t = fallback
+    TongRowName = t
+End Function
+
+Private Function TongStripStrings(f As String) As String
+    Dim s As String, i As Long, inQ As Boolean, ch As String
+    For i = 1 To Len(f)
+        ch = Mid$(f, i, 1)
+        If ch = """" Then
+            inQ = Not inQ
+            s = s & " "
+        ElseIf inQ Then
+            s = s & " "
+        Else
+            s = s & ch
+        End If
+    Next i
+    TongStripStrings = s
+End Function
+
+Private Function TongAddJob(nm As String, path As String, kind As Integer, sh As String, _
+        rw As Long, note As String) As Long
+    mTN = mTN + 1
+    If mTN > UBound(mTJ) Then ReDim Preserve mTJ(1 To mTN + 100)
+    With mTJ(mTN)
+        .Seq = mCurTop: .SumRow = mCurSumRow: .Label = mCurLabel
+        .Tag = Format$(mCurTop, "00")
+        .Nm = nm: .DetPath = path: .Kind = kind: .SheetNm = sh
+        .ThkpRow = rw: .Note = note
+    End With
+    TongAddJob = mTN
+End Function
+
+' Di theo 1 tham chieu (file, sheet, dong, cot) -> them cac muc in vao mTJ
+Private Sub TongExpand(ByVal path As String, ByVal sh As String, ByVal col As Long, ByVal rw As Long, _
+        ByVal depth As Integer, ByVal nm As String)
     Dim shU As String: shU = NormUp2(sh)
     If InStr(shU, "THKP") > 0 Then
-        mTJ(idx).DetPath = midPath: mTJ(idx).ThkpRow = rw
-        TongResolve = True: Exit Function
+        TongAddJob nm, path, TJ_THKP, sh, rw, ""
+        Exit Sub
+    End If
+    If depth > 6 Then
+        TongAddJob nm, "", TJ_THKP, "", 0, "Lien ket qua sau (>6 cap), dung tai: " & path
+        Exit Sub
+    End If
+    Dim key As String: key = LCase$("x|" & path & "|" & sh & "|" & rw & "|" & col)
+    If mVis.Exists(key) Then Exit Sub
+    mVis.Add key, 1
+
+    Dim w As Workbook: Set w = TongMidWb(path)
+    If w Is Nothing Then
+        TongAddJob nm, "", TJ_THKP, "", 0, "Khong mo duoc file: " & path
+        Exit Sub
+    End If
+    If TongIsDuToan(w) Then
+        If InStr(shU, "TH CHI PHI TB") > 0 Then
+            TongAddJob nm, path, TJ_TB, sh, 0, ""
+        Else
+            ' vd 'TH chi phi XD'!C5: ca file du toan ; ten hang muc o cot B cua dong do (de chon khoi khi file nhieu HM)
+            Dim jj As Long, hmT As String, wsX As Worksheet
+            jj = TongAddJob(nm, path, TJ_THKP, sh, 0, "")
+            On Error Resume Next
+            Set wsX = w.Worksheets(sh)
+            If Not wsX Is Nothing Then hmT = Trim$(CStr(wsX.Cells(rw, 2).Text))
+            On Error GoTo 0
+            If Left$(hmT, 1) = "+" Then hmT = Trim$(Mid$(hmT, 2))
+            If InStr(NormUp2(hmT), "HANG MUC") = 1 And InStr(hmT, ":") > 0 Then hmT = Trim$(Mid$(hmT, InStr(hmT, ":") + 1))
+            If InStr(NormUp2(hmT), "TONG CONG") > 0 Then hmT = ""
+            mTJ(jj).HmName = hmT
+        End If
+        Exit Sub
     End If
 
-    Dim w As Workbook: Set w = TongMidWb(midPath)
-    If w Is Nothing Then mTJ(idx).Note = "Khong mo duoc file trung gian: " & midPath: Exit Function
     Dim ws As Worksheet
     On Error Resume Next
     Set ws = w.Worksheets(sh)
     On Error GoTo 0
-    If ws Is Nothing Then mTJ(idx).Note = "File trung gian khong co sheet '" & sh & "'": Exit Function
-
-    Dim cols As Variant, k As Integer, fm As String
-    Dim p As String, s As String, r As Long
-    Dim tbPath As String
-    cols = Array(6, 5)                       ' F (xay lap / THKP) truoc, E (thiet bi) sau
-    For k = 0 To 1
-        fm = ws.Cells(rw, CLng(cols(k))).Formula
-        If TongParseRef(fm, p, s, r) Then
-            If InStr(NormUp2(s), "THKP") > 0 Then
-                mTJ(idx).DetPath = p: mTJ(idx).ThkpRow = r
-                TongResolve = True: Exit Function
-            ElseIf Len(tbPath) = 0 Then
-                tbPath = p
-            End If
-        End If
-    Next k
-    If Len(tbPath) > 0 Then
-        mTJ(idx).DetPath = tbPath: mTJ(idx).ThkpRow = 0
-        TongResolve = True: Exit Function
+    If ws Is Nothing Then
+        TongAddJob nm, "", TJ_THKP, "", 0, "File '" & GetFileName2(path) & "' khong co sheet '" & sh & "'"
+        Exit Sub
     End If
-    mTJ(idx).Note = "Khong co file du toan chi tiet (link noi bo / gia tri nhap tay) - bo qua"
+    Dim n As Long
+    n = TongWalkCell(ws, rw, col, depth, nm, 0)
+    If n = 0 Then
+        ' khong con lien ket xuong duoi -> chinh sheet nay la ban chi tiet
+        TongAddJob nm, path, TJ_RAW, ws.Name, 0, ""
+    End If
+End Sub
+
+' Di xuong 1 o cua file trung gian. Tra ve so tham chieu ngoai da di theo.
+Private Function TongWalkCell(ws As Worksheet, ByVal r As Long, ByVal c As Long, _
+        ByVal depth As Integer, ByVal nm As String, ByVal lvl As Integer) As Long
+    TongWalkCell = 0
+    If lvl > 8 Then Exit Function
+    mWalkBudget = mWalkBudget - 1
+    If mWalkBudget < 0 Then Exit Function
+    Dim key As String: key = LCase$("c|" & ws.Parent.FullName & "|" & ws.Name & "|" & r & "|" & c)
+    If mVis.Exists(key) Then Exit Function
+    mVis.Add key, 1
+
+    Dim fm As String
+    On Error Resume Next
+    fm = CStr(ws.Cells(r, c).Formula)
+    On Error GoTo 0
+    If Left$(fm, 1) <> "=" Then Exit Function
+
+    Dim rowNm As String: rowNm = TongRowName(ws, r, nm)
+    Dim n As Long, m As Object, i As Long
+    Dim p As String, s As String, rr As Long, cc As Long
+
+    ' 1) lien ket ra file khac
+    If InStr(fm, "[") > 0 Then
+        Set m = TongRx().Execute(fm)
+        For i = 0 To m.Count - 1
+            If TongRefFromMatch(m(i), ws.Parent, p, s, rr, cc) Then
+                TongExpand p, s, cc, rr, depth + 1, rowNm
+                n = n + 1
+            End If
+        Next i
+        If n > 0 Then TongWalkCell = n: Exit Function
+    End If
+
+    ' 2) tham chieu cung sheet: SUBTOTAL(9,G9:G35), SUM(...), =E11+E12 ...
+    Dim isSub As Boolean: isSub = (InStr(UCase$(fm), "SUBTOTAL") > 0)
+    Set m = TongIRx().Execute(TongStripStrings(fm))
+    Dim r1 As Long, r2 As Long, c1 As Long, c2 As Long, x As Long, y As Long, f2 As String
+    For i = 0 To m.Count - 1
+        c1 = TongColNum(CStr(m(i).SubMatches(1))): r1 = CLng(m(i).SubMatches(2))
+        If Len(CStr(m(i).SubMatches(3))) > 0 Then
+            c2 = TongColNum(CStr(m(i).SubMatches(4))): r2 = CLng(m(i).SubMatches(5))
+        Else
+            c2 = c1: r2 = r1
+        End If
+        If c1 < 1 Or c1 > 200 Or c2 > 200 Then GoTo NextRef
+        If r2 < r1 Then y = r1: r1 = r2: r2 = y
+        If c2 < c1 Then x = c1: c1 = c2: c2 = x
+        If r2 - r1 > 500 Then r2 = r1 + 500
+        For y = r1 To r2
+            For x = c1 To c2
+                If Not (y = r And x = c) Then
+                    f2 = ""
+                    On Error Resume Next
+                    f2 = CStr(ws.Cells(y, x).Formula)
+                    On Error GoTo 0
+                    If Left$(f2, 1) = "=" Then
+                        If Not (isSub And InStr(UCase$(f2), "SUBTOTAL") > 0) Then
+                            n = n + TongWalkCell(ws, y, x, depth, rowNm, lvl + 1)
+                        End If
+                    End If
+                End If
+            Next x
+        Next y
+NextRef:
+    Next i
+    TongWalkCell = n
 End Function
+
+' Thu muc con (tuong doi) cua file nguon so voi thu muc file tong, co "\" o cuoi
+Private Function TongSubDir(detPath As String, sumFolder As String) As String
+    TongSubDir = ""
+    If Len(detPath) = 0 Then Exit Function
+    Dim d As String: d = GetFolder2(detPath)
+    If StrComp(Left$(d, Len(sumFolder)), sumFolder, vbTextCompare) = 0 Then
+        TongSubDir = Mid$(d, Len(sumFolder) + 1)
+    Else
+        TongSubDir = "_NGOAI THU MUC TONG\"
+    End If
+End Function
+
+Private Sub TongMkDirs(ByVal p As String)
+    Dim fso As Object: Set fso = CreateObject("Scripting.FileSystemObject")
+    If Right$(p, 1) = "\" Then p = Left$(p, Len(p) - 1)
+    If Len(p) = 0 Then Exit Sub
+    If fso.FolderExists(p) Then Exit Sub
+    TongMkDirs fso.GetParentFolderName(p)
+    On Error Resume Next
+    fso.CreateFolder p
+    On Error GoTo 0
+End Sub
 
 Private Function TongHmOf(ws As Worksheet, r As Long) As Integer
     TongHmOf = 0
@@ -3244,15 +3477,86 @@ Private Function TongHmOf(ws As Worksheet, r As Long) As Integer
     Next hm
 End Function
 
+' Hang muc (1..gHMCount) theo ten: trung khop truoc, roi chua nhau
+Private Function TongHmByName(nm As String) As Integer
+    Dim k As Integer, a As String, b As String
+    a = Trim$(NormUp2(nm))
+    If Len(a) = 0 Then Exit Function
+    For k = 1 To gHMCount
+        If Trim$(NormUp2(gHMNames(k))) = a Then TongHmByName = k: Exit Function
+    Next k
+    For k = 1 To gHMCount
+        b = Trim$(NormUp2(gHMNames(k)))
+        If Len(b) > 0 Then
+            If InStr(b, a) > 0 Or InStr(a, b) > 0 Then TongHmByName = k: Exit Function
+        End If
+    Next k
+End Function
+
+' In 1 muc TJ_TB / TJ_RAW (1 sheet -> 1 PDF)
+Private Function TongExportSheetJob(wbk As Workbook, j As Long) As Boolean
+    TongExportSheetJob = False
+    Dim k As Integer, ok As Boolean
+    gLastErrDesc = ""
+    If mTJ(j).Kind = TJ_TB Then
+        For k = 1 To SHEET_COUNT
+            gSelSheet(k) = False: gOrder(k) = 99
+        Next k
+        gSelSheet(8) = True: gOrder(8) = 1          ' TH chi phi TB
+        ok = AlignAndExportOneWorkbook(wbk, "PDF", mTJ(j).OutPdf)
+        If ok And FileExists2(mTJ(j).OutPdf) Then TongExportSheetJob = True: Exit Function
+        ' khong nhan duoc sheet TB chuan -> in nguyen sheet
+    End If
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = wbk.Worksheets(mTJ(j).SheetNm)
+    On Error GoTo 0
+    If ws Is Nothing Then mTJ(j).Note = "Khong thay sheet '" & mTJ(j).SheetNm & "'": Exit Function
+    On Error Resume Next
+    If ws.Visible <> xlSheetVisible Then ws.Visible = xlSheetVisible
+    KillFile2 mTJ(j).OutPdf
+    Err.Clear
+    ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=mTJ(j).OutPdf, Quality:=xlQualityStandard, _
+        IncludeDocProperties:=False, IgnorePrintAreas:=False, OpenAfterPublish:=False
+    If Err.Number <> 0 Then mTJ(j).Note = "Loi xuat PDF " & Err.Number & ": " & Err.Description
+    Err.Clear
+    On Error GoTo 0
+    TongExportSheetJob = FileExists2(mTJ(j).OutPdf)
+End Function
+
 ' Xuat tat ca muc cua 1 file chi tiet
-Private Sub TongDoFile(path As String, jIdx() As Long, nJ As Long, inclTong As Boolean, logTo As Object)
-    Dim i As Long, k As Integer, hm As Integer
+Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong As Boolean, logTo As Object)
+    Dim i As Long, k As Integer, hm As Integer, q As Long
     Dim wbk As Workbook, own As Boolean
     Set wbk = TongOpenWb(path, own)
     If wbk Is Nothing Then
-        For i = 1 To nJ: mTJ(jIdx(i)).Note = "Khong mo duoc file: " & path: Next i
+        For i = 1 To nJIn: mTJ(jIdxIn(i)).Note = "Khong mo duoc file: " & path: Next i
         Exit Sub
     End If
+
+    ' ---- muc TB / RAW: moi sheet 1 PDF ; cung sheet -> chung PDF ----
+    Dim jIdx() As Long, nJ As Long
+    ReDim jIdx(1 To nJIn)
+    For i = 1 To nJIn
+        With mTJ(jIdxIn(i))
+            If .Kind = TJ_THKP Then
+                nJ = nJ + 1: jIdx(nJ) = jIdxIn(i)
+            Else
+                For q = 1 To i - 1
+                    If mTJ(jIdxIn(q)).Kind = .Kind And StrComp(mTJ(jIdxIn(q)).SheetNm, .SheetNm, vbTextCompare) = 0 _
+                       And mTJ(jIdxIn(q)).DupOf = 0 Then Exit For
+                Next q
+                If q < i Then
+                    .DupOf = jIdxIn(q)
+                    .Note = "Trung sheet voi muc " & mTJ(jIdxIn(q)).Tag & " - xuat chung 1 PDF"
+                Else
+                    .Done = TongExportSheetJob(wbk, jIdxIn(i))
+                    If Not .Done And Len(.Note) = 0 Then .Note = "Loi xuat PDF: " & IIf(Len(gLastErrDesc) > 0, gLastErrDesc, "khong ro")
+                End If
+            End If
+        End With
+    Next i
+    If nJ = 0 Then GoTo CloseIt
 
     gLastErr2 = "": gLastErrDesc = ""
     gGiaTongHopInTongCong = inclTong
@@ -3263,21 +3567,49 @@ Private Sub TongDoFile(path As String, jIdx() As Long, nJ As Long, inclTong As B
         ' ---- file nhieu hang muc: moi muc 1 PDF ----
         Dim wsT As Worksheet: Set wsT = Find2Sheet(wbk, 1)
         Dim owner(1 To 20) As Long        ' hang muc -> muc dau tien dung no
-        Dim lst(1 To 20) As Long, nL As Long
+        Dim lstJ(1 To 20) As Long, lstHm(1 To 20) As Integer, lstPdf(1 To 20) As String, nL As Long
+        Dim wholeJ As Long                ' muc lien ket vao dong TONG ('TH chi phi XD' dong tong) -> ca file
         For i = 1 To nJ
             With mTJ(jIdx(i))
                 hm = TongHmOf(wsT, .ThkpRow)
-                If hm = 0 Then
-                    .Note = "Khong xac dinh duoc hang muc (THKP dong " & .ThkpRow & ") trong file"
+                If hm = 0 And Len(.HmName) > 0 Then hm = TongHmByName(.HmName)
+                If hm = 0 And .ThkpRow = 0 Then
+                    If wholeJ = 0 Then
+                        wholeJ = jIdx(i)
+                    Else
+                        .DupOf = wholeJ
+                        .Note = "Ca file - xuat chung voi muc " & mTJ(wholeJ).Tag
+                    End If
+                ElseIf hm = 0 Then
+                    .Note = "Khong xac dinh duoc hang muc (THKP dong " & .ThkpRow & ") trong file nhieu hang muc"
                 ElseIf owner(hm) <> 0 Then
                     .Hm = hm: .DupOf = owner(hm)
-                    .Note = "Trung hang muc voi muc " & Format$(mTJ(owner(hm)).Seq, "00") & " - xuat chung 1 PDF"
+                    .Note = "Trung hang muc voi muc " & mTJ(owner(hm)).Tag & " - xuat chung 1 PDF"
                 Else
                     .Hm = hm: owner(hm) = jIdx(i)
-                    nL = nL + 1: lst(nL) = jIdx(i)
+                    nL = nL + 1: lstJ(nL) = jIdx(i): lstHm(nL) = hm: lstPdf(nL) = .OutPdf
                 End If
             End With
         Next i
+        ' Muc "ca file": moi hang muc chua co PDF rieng -> <ten>_HMk.pdf (nguoi dung tu ghep)
+        If wholeJ > 0 Then
+            Dim baseP As String: baseP = Left$(mTJ(wholeJ).OutPdf, Len(mTJ(wholeJ).OutPdf) - 4)
+            Dim nW As Integer
+            For hm = 1 To gHMCount
+                If owner(hm) = 0 And nL < 20 Then
+                    nW = nW + 1
+                    nL = nL + 1: lstJ(nL) = wholeJ: lstHm(nL) = hm
+                    lstPdf(nL) = baseP & "_HM" & hm & ".pdf"
+                    owner(hm) = wholeJ
+                End If
+            Next hm
+            If nW = 0 Then
+                mTJ(wholeJ).Note = "Ca file - cac hang muc da co trong PDF cua muc khac"
+                mTJ(wholeJ).DupOf = owner(1)
+            Else
+                mTJ(wholeJ).Note = "Ca file " & gHMCount & " hang muc - xuat " & nW & " PDF <ten>_HMk.pdf (hang muc da co PDF o muc khac thi khong xuat lai)"
+            End If
+        End If
 
         If nL > 0 Then
             Dim a As Integer, b As Integer
@@ -3285,12 +3617,12 @@ Private Sub TongDoFile(path As String, jIdx() As Long, nJ As Long, inclTong As B
                 For b = 1 To HM_SHEET_COUNT: gSelN(b, a) = False: Next b
             Next a
             For i = 1 To nL
-                hm = mTJ(lst(i)).Hm
+                hm = lstHm(i)
                 gSelN(1, hm) = True: gSelN(2, hm) = True: gSelN(3, hm) = Not gTongNoDGCT
                 gSelN(5, hm) = True               ' Gia thang -> di kem MOI hang muc
-                gForcePdf(hm) = mTJ(lst(i)).OutPdf
+                gForcePdf(hm) = lstPdf(i)
             Next i
-            gSelN(6, mTJ(lst(1)).Hm) = True        ' TH chi phi TB -> hang muc dau
+            gSelN(6, lstHm(1)) = True              ' TH chi phi TB -> hang muc dau
             gOrderN(6) = 1: gOrderN(1) = 2: gOrderN(2) = 3: gOrderN(3) = 4: gOrderN(5) = 5: gOrderN(4) = 99
             gHM_XuatKieu = "TACH"
             gHM_TenTheoHM = False
@@ -3298,10 +3630,14 @@ Private Sub TongDoFile(path As String, jIdx() As Long, nJ As Long, inclTong As B
             Dim outs() As String, nOut As Integer, ok As Boolean
             ok = ProcessWorkbookNHM(wbk, outs, nOut)
             For i = 1 To nL
-                With mTJ(lst(i))
-                    .Done = FileExists2(.OutPdf)
+                With mTJ(lstJ(i))
+                    If lstPdf(i) = .OutPdf Then
+                        .Done = FileExists2(.OutPdf)
+                    Else
+                        If FileExists2(lstPdf(i)) Then .Done = True
+                    End If
                     If Not .Done Then .Note = "Loi xuat PDF: " & IIf(Len(gLastErr2) > 0, Replace(gLastErr2, vbLf, " "), "khong ro")
-                    If .Done And Len(gLastErr2) > 0 Then .Note = "Canh bao: " & Replace(gLastErr2, vbLf, " ")
+                    If .Done And Len(gLastErr2) > 0 Then .Note = .Note & IIf(Len(.Note) > 0, " ; ", "") & "Canh bao: " & Replace(gLastErr2, vbLf, " ")
                 End With
             Next i
         End If
@@ -3310,8 +3646,8 @@ Private Sub TongDoFile(path As String, jIdx() As Long, nJ As Long, inclTong As B
         ' ---- file 1 hang muc: tat ca muc tro cung 1 PDF ----
         Dim first As Long: first = jIdx(1)
         For i = 2 To nJ
-            mTJ(jIdx(i)).DupOf = mTJ(first).Seq
-            mTJ(jIdx(i)).Note = "File chi co 1 hang muc - xuat chung PDF voi muc " & Format$(mTJ(first).Seq, "00")
+            mTJ(jIdx(i)).DupOf = first
+            mTJ(jIdx(i)).Note = "File chi co 1 hang muc - xuat chung PDF voi muc " & mTJ(first).Tag
         Next i
         For k = 1 To SHEET_COUNT
             gSelSheet(k) = False: gOrder(k) = 99
@@ -3329,6 +3665,7 @@ Private Sub TongDoFile(path As String, jIdx() As Long, nJ As Long, inclTong As B
         End If
     End If
 
+CloseIt:
     If own Then
         On Error Resume Next
         wbk.Close SaveChanges:=False
@@ -3360,6 +3697,11 @@ Public Sub API_SetTongNoDGCT(ByVal b As Boolean)
     gTongNoDGCT = b
 End Sub
 
+' True = chi do lien ket + ghi bao cao, KHONG xuat PDF (xem truoc danh sach)
+Public Sub API_SetTongDryRun(ByVal b As Boolean)
+    gTongDryRun = b
+End Sub
+
 Public Function API_TongReport() As String
     API_TongReport = gTongReport
 End Function
@@ -3374,15 +3716,13 @@ Private Function TongRun(sumPath As String, ByVal outFolder As String, inclTongC
     If Len(outFolder) = 0 Then outFolder = GetFolder2(sumPath) & "PDF"
     If Right$(outFolder, 1) = "\" Then outFolder = Left$(outFolder, Len(outFolder) - 1)
     If Not FolderExists2(outFolder) Then
-        On Error Resume Next
-        CreateObject("Scripting.FileSystemObject").CreateFolder outFolder
-        On Error GoTo 0
+        TongMkDirs outFolder
         If Not FolderExists2(outFolder) Then report = "Khong tao duoc thu muc luu PDF: " & outFolder: Exit Function
     End If
     outFolder = outFolder & "\"
+    Dim sumFolder As String: sumFolder = GetFolder2(sumPath)
 
     Dim savedCalc As XlCalculation: savedCalc = Application.Calculation
-    Dim savedSU As Boolean: savedSU = Application.ScreenUpdating
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     Application.Calculation = xlCalculationManual
@@ -3400,16 +3740,17 @@ Private Function TongRun(sumPath As String, ByVal outFolder As String, inclTongC
     End If
     TongLog logTo, "Doc sheet '" & ws.Name & "' cua file tong hop..."
 
-    ' ---- 1) doc cac dong la ----
+    ' ---- 1) doc cac dong co lien ket, di theo tung cap ----
     Dim lastRow As Long
     lastRow = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
     If lastRow > 1500 Then lastRow = 1500
     Dim fm As Variant: fm = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, 12)).Formula
     Dim r As Long, c As Long, a As String, bnm As String, hdr As String
-    Dim p As String, s As String, rw As Long, hit As Boolean
+    Dim p As String, s As String, rw As Long, cl As Long, hit As Boolean
+    Dim nTop As Long, firstJ As Long, cntJ As Long, mm As Object, q As Long
     mTN = 0
     ReDim mTJ(1 To 200)
-    ' cot lien ket = cot (D..L) co nhieu cong thuc tro ra file khac nhat (vd cot G)
+    ' cot lien ket = cot (D..L) co nhieu cong thuc tro ra file khac nhat (vd cot G, H)
     Dim cnt(4 To 12) As Long, linkCol As Long, bestCnt As Long
     For r = 1 To lastRow
         For c = 4 To 12
@@ -3421,27 +3762,40 @@ Private Function TongRun(sumPath As String, ByVal outFolder As String, inclTongC
         If cnt(c) > bestCnt Then bestCnt = cnt(c): linkCol = c
     Next c
     For r = 1 To lastRow
-        hit = TongParseRef(CStr(fm(r, linkCol)), p, s, rw)
+        hit = TongParseRef(CStr(fm(r, linkCol)), p, s, rw, cl, wbS)
         a = Replace(Trim$(ws.Cells(r, 1).Text), ",", ".")
         If hit Then
-            If toLeaf > 0 And mTN >= toLeaf Then Exit For
-            mTN = mTN + 1
-            If mTN > UBound(mTJ) Then ReDim Preserve mTJ(1 To mTN + 100)
+            If toLeaf > 0 And nTop >= toLeaf Then Exit For
+            nTop = nTop + 1
             bnm = Trim$(Replace(Replace(ws.Cells(r, 2).Text, vbLf, " "), vbCr, " "))
-            With mTJ(mTN)
-                .Seq = mTN: .SumRow = r
-                .Label = IIf(Len(hdr) > 0, hdr & "-", "") & a
-                .Nm = bnm
-            End With
-            If mTN < fromLeaf Then
-                mTJ(mTN).Note = "Ngoai pham vi chay"
+            mCurTop = nTop: mCurSumRow = r
+            mCurLabel = IIf(Len(hdr) > 0, hdr & "-", "") & a
+            If nTop < fromLeaf Then
+                TongAddJob bnm, "", TJ_THKP, "", 0, "Ngoai pham vi chay"
             Else
-                Call TongResolve(mTN, p, s, rw)
-                If Len(gTongFilter) > 0 And Len(mTJ(mTN).DetPath) > 0 Then
-                    If InStr(1, mTJ(mTN).DetPath, gTongFilter, vbTextCompare) = 0 Then
-                        mTJ(mTN).DetPath = "": mTJ(mTN).Note = "Ngoai pham vi chay"
-                    End If
+                TongLog logTo, "Do lien ket muc " & Format$(nTop, "00") & " " & bnm
+                DoEvents
+                Set mVis = CreateObject("Scripting.Dictionary")
+                mWalkBudget = 5000
+                firstJ = mTN + 1
+                Set mm = TongRx().Execute(CStr(fm(r, linkCol)))
+                For q = 0 To mm.Count - 1
+                    If TongRefFromMatch(mm(q), wbS, p, s, rw, cl) Then TongExpand p, s, cl, rw, 0, bnm
+                Next q
+                If mTN < firstJ Then
+                    TongAddJob bnm, "", TJ_THKP, "", 0, "Khong co file du toan chi tiet (lien ket noi bo / gia tri nhap tay)"
                 End If
+                cntJ = mTN - firstJ + 1
+                For q = firstJ To mTN
+                    With mTJ(q)
+                        If cntJ > 1 Then .Tag = Format$(nTop, "00") & "." & Format$(q - firstJ + 1, "00")
+                        If Len(gTongFilter) > 0 And Len(.DetPath) > 0 Then
+                            If InStr(1, .DetPath, gTongFilter, vbTextCompare) = 0 Then
+                                .DetPath = "": .Note = "Ngoai pham vi chay"
+                            End If
+                        End If
+                    End With
+                Next q
             End If
         ElseIf TongIsPartHdr(a) Then
             hdr = a
@@ -3449,14 +3803,16 @@ Private Function TongRun(sumPath As String, ByVal outFolder As String, inclTongC
     Next r
     If mTN = 0 Then report = "Khong co dong lien ket nao trong file tong hop.": GoTo Done
 
-    ' ---- 2) ten PDF + gom theo file chi tiet (giu thu tu xuat hien) ----
-    Dim i As Long, j As Long
+    ' ---- 2) ten PDF (trong thu muc con giong nguon) + gom theo file chi tiet ----
+    Dim i As Long, j As Long, sd As String
     Dim files() As String, nF As Long
     ReDim files(1 To mTN)
     For i = 1 To mTN
         With mTJ(i)
-            .OutPdf = outFolder & Format$(.Seq, "00") & "_" & CleanName2(.Label & " " & .Nm, "HM") & ".pdf"
+            sd = TongSubDir(.DetPath, sumFolder)
+            .OutPdf = outFolder & sd & .Tag & "_" & CleanName2(.Label & " " & .Nm, "HM") & ".pdf"
             If Len(.DetPath) > 0 Then
+                If Len(sd) > 0 Then TongMkDirs outFolder & sd
                 For j = 1 To nF
                     If StrComp(files(j), .DetPath, vbTextCompare) = 0 Then Exit For
                 Next j
@@ -3464,11 +3820,12 @@ Private Function TongRun(sumPath As String, ByVal outFolder As String, inclTongC
             End If
         End With
     Next i
-    TongLog logTo, mTN & " muc trong file tong, " & nF & " file du toan chi tiet can xu ly."
+    TongLog logTo, nTop & " muc trong file tong -> " & mTN & " muc in, " & nF & " file chi tiet can xu ly."
 
     ' ---- 3) xu ly tung file chi tiet ----
     Dim jIdx() As Long, nJ As Long, f As Long
     ReDim jIdx(1 To mTN)
+    If gTongDryRun Then nF = 0                ' chay kho: khong xuat
     For f = 1 To nF
         nJ = 0
         For i = 1 To mTN
@@ -3479,43 +3836,58 @@ Private Function TongRun(sumPath As String, ByVal outFolder As String, inclTongC
         TongDoFile files(f), jIdx, nJ, inclTongCong, logTo
         For i = 1 To nJ
             With mTJ(jIdx(i))
-                If .Done Then TongLog logTo, "     OK  " & GetFileName2(.OutPdf)
+                If .Done Then TongLog logTo, "     OK  " & Mid$(.OutPdf, Len(outFolder) + 1)
             End With
         Next i
     Next f
 
     ' ---- 4) bao cao ----
-    Dim nOK As Long, nBad As Long, rp As String
-    rp = "XUAT PDF THEO FILE TONG HOP - " & Format$(Now, "yyyy-mm-dd hh:nn:ss") & vbCrLf & _
-         "File tong : " & sumPath & vbCrLf & "Thu muc   : " & outFolder & vbCrLf & String$(60, "=") & vbCrLf
+    Dim nOK As Long, nBad As Long, rp As String, lastTop As Long, kindTxt As String
+    rp = "XUAT PDF THEO FILE TONG HOP (V6.5) - " & Format$(Now, "yyyy-mm-dd hh:nn:ss") & vbCrLf & _
+         "File tong : " & sumPath & vbCrLf & "Sheet     : " & ws.Name & vbCrLf & _
+         "Thu muc   : " & outFolder & vbCrLf & String$(70, "=") & vbCrLf
     For i = 1 To mTN
         With mTJ(i)
-            rp = rp & Format$(.Seq, "00") & " | " & .Label & " | " & .Nm & vbCrLf
+            If .Seq <> lastTop Then
+                rp = rp & Format$(.Seq, "00") & " | " & .Label & " | " & Trim$(Replace(Replace(CStr(ws.Cells(.SumRow, 2).Text), vbLf, " "), vbCr, " ")) & vbCrLf
+                lastTop = .Seq
+            End If
+            rp = rp & "   " & .Tag & " " & .Nm & vbCrLf
             If .Done Then
                 nOK = nOK + 1
-                rp = rp & "     -> " & GetFileName2(.OutPdf) & IIf(Len(.Note) > 0, "   [" & .Note & "]", "") & vbCrLf
+                rp = rp & "        -> " & Mid$(.OutPdf, Len(outFolder) + 1) & IIf(Len(.Note) > 0, "   [" & .Note & "]", "") & vbCrLf
             ElseIf .DupOf > 0 Then
-                rp = rp & "     -> (chung PDF voi muc " & Format$(mTJ(.DupOf).Seq, "00") & ")" & vbCrLf
+                rp = rp & "        -> (chung PDF voi muc " & mTJ(.DupOf).Tag & ")" & vbCrLf
             ElseIf .Note = "Ngoai pham vi chay" Then
-                rp = rp & "     -> (khong chay: ngoai pham vi tu-den)" & vbCrLf
+                rp = rp & "        -> (khong chay: ngoai pham vi)" & vbCrLf
+            ElseIf gTongDryRun And Len(.DetPath) > 0 Then
+                rp = rp & "        -> (chay kho) " & Mid$(.OutPdf, Len(outFolder) + 1) & IIf(Len(.HmName) > 0, "   [HM: " & .HmName & "]", "") & vbCrLf
             Else
                 nBad = nBad + 1
-                rp = rp & "     -> KHONG XUAT: " & .Note & vbCrLf
+                rp = rp & "        -> KHONG XUAT: " & .Note & vbCrLf
             End If
-            If Len(.DetPath) > 0 Then rp = rp & "        nguon: " & .DetPath & IIf(.ThkpRow > 0, "  (THKP dong " & .ThkpRow & ")", "") & vbCrLf
+            If Len(.DetPath) > 0 Then
+                Select Case .Kind
+                    Case TJ_TB: kindTxt = "  (sheet " & .SheetNm & ")"
+                    Case TJ_RAW: kindTxt = "  (in nguyen sheet " & .SheetNm & ")"
+                    Case Else: kindTxt = IIf(.ThkpRow > 0, "  (THKP dong " & .ThkpRow & ")", "  (ca file)")
+                End Select
+                rp = rp & "           nguon: " & .DetPath & kindTxt & vbCrLf
+            End If
         End With
     Next i
-    rp = rp & String$(60, "=") & vbCrLf & "Da xuat " & nOK & " PDF, khong xuat " & nBad & " muc."
+    rp = rp & String$(70, "=") & vbCrLf & nTop & " muc file tong -> " & mTN & " muc in. Da xuat " & nOK & " PDF, khong xuat " & nBad & " muc."
     report = rp
     On Error Resume Next
     Dim ts As Object
-    Set ts = CreateObject("Scripting.FileSystemObject").CreateTextFile(outFolder & "_THU_TU_XUAT.txt", True, True)   ' (loc theo thu muc van ghi vao thu muc dich rieng)
+    Set ts = CreateObject("Scripting.FileSystemObject").CreateTextFile(outFolder & "_THU_TU_XUAT.txt", True, True)
     ts.Write rp: ts.Close
     On Error GoTo 0
     TongRun = nOK
 
 Done:
     TongCloseMids
+    Set mVis = Nothing
     On Error Resume Next
     If Not wbS Is Nothing Then
         If ownS Then wbS.Close SaveChanges:=False
@@ -3524,4 +3896,5 @@ Done:
     Application.Calculation = savedCalc
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
+    Application.StatusBar = False
 End Function
