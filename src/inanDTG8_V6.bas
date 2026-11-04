@@ -1938,11 +1938,16 @@ Private Function OrdN(idx As Integer) As Integer
     If OrdN < 1 Then OrdN = 99
 End Function
 
+' Ten PDF tung hang muc: "_HM1 Lap dat" / "_HM2 Xay dung" (co dau, theo loai hang muc), khong ro loai -> "_HMk"
 Private Function HmSuffix(hm As Integer) As String
     If gHM_TenTheoHM Then
         HmSuffix = "-" & CleanName2(gHMNames(hm), "HM" & hm)
     Else
-        HmSuffix = "_HM" & hm
+        Select Case KindFromName(gHMNames(hm))
+            Case "TB": HmSuffix = "_HM" & hm & " Lắp đặt"
+            Case "XD": HmSuffix = "_HM" & hm & " Xây dựng"
+            Case Else: HmSuffix = "_HM" & hm
+        End Select
     End If
 End Function
 
@@ -2054,6 +2059,7 @@ Private Function KindFromName(nm As String) As String
     Dim up As String: up = NormUp2(nm)
     If InStr(up, "LAP DAT THIET BI") > 0 Then KindFromName = "TB": Exit Function
     If InStr(up, "THIET BI") > 0 Then KindFromName = "TB": Exit Function
+    If InStr(up, "LAP DAT") > 0 Then KindFromName = "TB": Exit Function     ' vd "... - LAP DAT THEO TT36"
     If InStr(up, "XAY DUNG") > 0 Then KindFromName = "XD": Exit Function
     KindFromName = ""
 End Function
@@ -4093,6 +4099,24 @@ Public Sub API_SetSel1(ByVal sel As String, Optional ByVal outFolder As String =
     For k = 1 To SHEET_COUNT: gSelSheet(k) = False: gOrder(k) = 99: Next k
     For k = 1 To n: gSelSheet(ids(k)) = True: gOrder(ids(k)) = k: Next k
     gOutFolder1 = outFolder
+End Sub
+
+' Chon sheet cho nhanh NHIEU hang muc (thay cho tick tren form), moi hang muc 1 PDF.
+'   sel: "6,1,2,3,5" (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 TB) ; outFolder: thu muc luu PDF
+Public Sub API_SetSelN(ByVal sel As String, Optional ByVal outFolder As String = "")
+    Dim ids() As Integer, n As Integer, k As Integer, hm As Integer
+    n = TongParseSel(sel, "6,1,2,3,5", HM_SHEET_COUNT, ids)
+    For k = 1 To HM_SHEET_COUNT
+        gOrderN(k) = 99
+        For hm = 1 To MAX_HM: gSelN(k, hm) = False: Next hm
+    Next k
+    For k = 1 To n
+        gOrderN(ids(k)) = k
+        For hm = 1 To MAX_HM: gSelN(ids(k), hm) = True: Next hm
+    Next k
+    gHM_OutFolder = outFolder
+    gHM_XuatKieu = "TACH"
+    gHM_TenTheoHM = False
 End Sub
 
 ' Doc tuy chon dung chung tu sheet "IN THEO FILE TONG" cua tool (form in an goi truoc moi lan chay):
