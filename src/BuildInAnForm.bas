@@ -164,7 +164,8 @@ Private Sub BuildTongCfgSheet()
     lbls = Array("File tổng hợp", "Thư mục lưu PDF  (trống = thư mục PDF cạnh file tổng)", _
                  "Chạy từ mục số  (1 = từ đầu)", "Chạy đến mục số  (0 = đến hết)", _
                  "Tên dự án in ra  (trống = giữ như file nguồn)", "Tên công trình in ra  (trống = giữ như file nguồn)", _
-                 "In cột Tổng cộng ở Giá tổng hợp", "Chỉ dò link, KHÔNG xuất PDF (xem trước)")
+                 "In cột Tổng cộng ở Giá tổng hợp", "Chỉ dò link, KHÔNG xuất PDF (xem trước)", _
+                 "Viết HOA dòng Tên dự án / công trình / hạng mục ở THKP", "Giá tháng: ẩn cột Mã số")
     For i = 0 To UBound(lbls)
         ws.Cells(4 + i, 2).Value = lbls(i)
         ws.Range(ws.Cells(4 + i, 3), ws.Cells(4 + i, 5)).Merge
@@ -175,12 +176,14 @@ Private Sub BuildTongCfgSheet()
             .Locked = False
         End With
     Next i
-    ws.Range("B4:B11").Font.Bold = True
+    ws.Range("B4:B13").Font.Bold = True
     ws.Range("C6").Value = 1
     ws.Range("C7").Value = 0
     ws.Range("C10").Value = "Không"
     ws.Range("C11").Value = "Không"
-    With ws.Range("C10:C11").Validation
+    ws.Range("C12").Value = "Có"
+    ws.Range("C13").Value = "Có"
+    With ws.Range("C10:C13").Validation
         .Delete
         .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="Có,Không"
     End With
@@ -188,17 +191,17 @@ Private Sub BuildTongCfgSheet()
     ws.Rows("8:9").RowHeight = 30
 
     ' ---- bang chon sheet ----
-    ws.Range("B13").Value = "SHEET"
-    ws.Range("C13").Value = "File 1 hạng mục" & vbLf & "thứ tự in"
-    ws.Range("D13").Value = "File 2, 3… hạng mục" & vbLf & "thứ tự in"
-    ws.Range("E13").Value = "Ghi chú"
-    With ws.Range("B13:E13")
+    ws.Range("B15").Value = "SHEET"
+    ws.Range("C15").Value = "File 1 hạng mục" & vbLf & "thứ tự in"
+    ws.Range("D15").Value = "File 2, 3… hạng mục" & vbLf & "thứ tự in"
+    ws.Range("E15").Value = "Ghi chú"
+    With ws.Range("B15:E15")
         .Font.Bold = True: .Font.Color = RGB(255, 255, 255)
         .Interior.Color = RGB(51, 65, 85)
         .WrapText = True: .VerticalAlignment = xlCenter
     End With
-    ws.Range("C13:D13").HorizontalAlignment = xlCenter
-    ws.Rows(13).RowHeight = 32
+    ws.Range("C15:D15").HorizontalAlignment = xlCenter
+    ws.Rows(15).RowHeight = 32
 
     Dim shNames As Variant, ord1 As Variant, ordN As Variant, notes As Variant
     shNames = Array("TH chi phí TB", "THKP hạng mục", "Giá tổng hợp", "Đơn giá chi tiết", "Công trình", _
@@ -213,30 +216,30 @@ Private Sub BuildTongCfgSheet()
                "Bảng chung: in kèm MỌI hạng mục.", _
                "Chỉ file 1 hạng mục.", "Chỉ file 1 hạng mục.")
     For i = 0 To 7
-        ws.Cells(14 + i, 2).Value = shNames(i)
-        ws.Cells(14 + i, 3).Value = ord1(i)
-        ws.Cells(14 + i, 4).Value = ordN(i)
-        ws.Cells(14 + i, 5).Value = notes(i)
+        ws.Cells(16 + i, 2).Value = shNames(i)
+        ws.Cells(16 + i, 3).Value = ord1(i)
+        ws.Cells(16 + i, 4).Value = ordN(i)
+        ws.Cells(16 + i, 5).Value = notes(i)
     Next i
-    With ws.Range("B14:E21")
+    With ws.Range("B16:E23")
         .Borders.Color = RGB(203, 213, 225)
         .VerticalAlignment = xlCenter
     End With
-    ws.Range("C14:D21").HorizontalAlignment = xlCenter
-    ws.Range("C14:D21").Interior.Color = RGB(255, 255, 255)
-    ws.Range("C14:C21,D14:D19").Locked = False
-    ws.Range("D20:D21").Interior.Color = RGB(226, 232, 240)
-    ws.Range("D20:D21").Font.Color = RGB(148, 163, 184)
-    ws.Range("E14:E21").Font.Color = RGB(100, 116, 139)
-    ws.Range("E14:E21").WrapText = True
-    With ws.Range("C14:C21,D14:D19").Validation
+    ws.Range("C16:D23").HorizontalAlignment = xlCenter
+    ws.Range("C16:D23").Interior.Color = RGB(255, 255, 255)
+    ws.Range("C16:C23,D16:D21").Locked = False
+    ws.Range("D22:D23").Interior.Color = RGB(226, 232, 240)
+    ws.Range("D22:D23").Font.Color = RGB(148, 163, 184)
+    ws.Range("E16:E23").Font.Color = RGB(100, 116, 139)
+    ws.Range("E16:E23").WrapText = True
+    With ws.Range("C16:C23,D16:D21").Validation
         .Delete
         .Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="1", Formula2:="20"
         .ErrorMessage = "Nhập số thứ tự in (1, 2, 3…) hoặc để trống = không in."
     End With
-    ws.Range("B23").Value = "Ô thứ tự để TRỐNG = không in sheet đó. Số nhỏ in trước. Sheet nào file nguồn không có thì tự bỏ qua."
-    ws.Range("B24").Value = "File 1 hạng mục: cả file 1 PDF.   File 2, 3… hạng mục: mỗi hạng mục 1 PDF, các sheet trên được tách đúng phần của hạng mục đó."
-    ws.Range("B23:B24").Font.Color = RGB(100, 116, 139)
+    ws.Range("B25").Value = "Ô thứ tự để TRỐNG = không in sheet đó. Số nhỏ in trước. Sheet nào file nguồn không có thì tự bỏ qua."
+    ws.Range("B26").Value = "File 1 hạng mục: cả file 1 PDF.   File 2, 3… hạng mục: mỗi hạng mục 1 PDF, các sheet trên được tách đúng phần của hạng mục đó."
+    ws.Range("B25:B26").Font.Color = RGB(100, 116, 139)
 
     ' ---- nut ----
     Dim r As Range
@@ -252,7 +255,7 @@ Private Sub BuildTongCfgSheet()
             .TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
         End With
     End With
-    Set r = ws.Range("G13:G16")
+    Set r = ws.Range("G15:G18")
     Set shp = ws.Shapes.AddShape(5, r.Left, r.Top + 2, r.Width, r.Height - 4)
     With shp
         .Name = "btnTongBatDau": .OnAction = "XuatTong_BatDau"

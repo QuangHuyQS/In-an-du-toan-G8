@@ -73,7 +73,9 @@ Public gTongFilter As String           ' chi xuat cac muc co duong dan file chi 
 Public gTongDryRun As Boolean           ' True = chi do lien ket, khong xuat PDF
 Public gTongTenDuAn As String           ' thay "Ten du an:" (rong = giu nguyen)
 Public gTongTenCongTrinh As String      ' thay "Ten cong trinh:" / "CONG TRINH :" (rong = giu nguyen)
-Public gTongSel1 As String              ' sheet in cho file 1 hang muc, theo thu tu: idx V3 (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB)
+Public gGTShowMaSo As Boolean           ' True = Gia thang VAN in cot Ma so (mac dinh: an)
+Public gTongNoUpper As Boolean         ' True = KHONG viet hoa dong Ten du an / cong trinh / hang muc o THKP (mac dinh: viet hoa)
+Public gTongSel1 As String             ' sheet in cho file 1 hang muc, theo thu tu: idx V3 (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB)
 Public gTongSelN As String              ' sheet in cho file nhieu hang muc, theo thu tu: idx HM (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 TB)
 Public gTongReport As String  ' bao cao lan chay API_RunTong gan nhat (doc qua Application.Run khi goi tu ngoai)
 
@@ -545,6 +547,46 @@ Private Sub THKPHideEmptyRows(ws As Worksheet)
     Next r
 End Sub
 
+' Gia thang: an cot "Ma so" (tim theo tieu de dong 1..8, mac dinh cot B). gGTShowMaSo = True -> giu.
+Public Sub GiaThangHideMaSo(ws As Worksheet)
+    If gGTShowMaSo Then Exit Sub
+    Dim r As Long, c As Long, found As Boolean
+    For r = 1 To 8
+        For c = 1 To 6
+            If Trim$(NormUp2(SafeText2(ws, r, c))) = "MA SO" Then found = True: Exit For
+        Next c
+        If found Then Exit For
+    Next r
+    On Error Resume Next
+    If found Then ws.Columns(c).Hidden = True
+    On Error GoTo 0
+End Sub
+
+' THKP: viet HOA ca dong "Ten du an: / Ten cong trinh: / Ten hang muc:" (cot A, moi khoi hang muc)
+Public Sub TongUpperTHKP(wbk As Workbook)
+    Dim ws As Worksheet, lastR As Long, r As Long, t As String, up As String
+    For Each ws In wbk.Worksheets
+        If InStr(NormUp2(ws.Name), "THKP") > 0 Then
+            On Error Resume Next
+            lastR = 0
+            lastR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
+            On Error GoTo 0
+            If lastR > 2000 Then lastR = 2000
+            For r = 1 To lastR
+                t = SafeText2(ws, r, 1)
+                up = Trim$(NormUp2(t))
+                If Left$(up, 9) = "TEN DU AN" Or Left$(up, 14) = "TEN CONG TRINH" Or Left$(up, 12) = "TEN HANG MUC" Then
+                    If StrComp(t, UCase$(t), vbBinaryCompare) <> 0 Then
+                        On Error Resume Next
+                        ws.Cells(r, 1).Value = UCase$(t)
+                        On Error GoTo 0
+                    End If
+                End If
+            Next r
+        End If
+    Next ws
+End Sub
+
 ' Thay ten du an / ten cong trinh o cot A moi sheet (chi trong bo nho - file mo chi doc, khong luu).
 '   "Ten du an: ..."                       -> ten du an moi
 '   "Ten cong trinh: ..." / "CONG TRINH : ..." -> ten cong trinh moi
@@ -869,6 +911,7 @@ Private Sub PrepareSheetForPrint(idx As Integer, ws As Worksheet)
         On Error Resume Next
         ws.Columns("E:E").Hidden = True
         ws.Columns("G:J").Hidden = True
+        GiaThangHideMaSo ws
         On Error GoTo 0
 
     Case 6 ' Tong hop VT: an cac cot phu (F,J,Q,R), chinh do rong O,P
@@ -2593,9 +2636,10 @@ Private Sub PrepareCols2(idx As Integer, ws As Worksheet)
         ws.Range("E:E").EntireColumn.Hidden = False
         ws.Range("F:L").EntireColumn.Hidden = False
         ws.Range("O:P").EntireColumn.Hidden = False
-    Case 5 ' Gia thang: an E, G:J
+    Case 5 ' Gia thang: an E, G:J (+ Ma so)
         ws.Columns("E:E").Hidden = True
         ws.Columns("G:J").Hidden = True
+        GiaThangHideMaSo ws
     Case 6 ' TH chi phi TB: khong an gi
     End Select
     On Error GoTo 0
@@ -2615,6 +2659,7 @@ Private Sub HideColsFinal2(idx As Integer, ws As Worksheet)
     Case 5
         ws.Columns("E:E").Hidden = True
         ws.Columns("G:J").Hidden = True
+        GiaThangHideMaSo ws
     End Select
     On Error GoTo 0
 End Sub
@@ -3634,6 +3679,7 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
         Exit Sub
     End If
     TongApplyNames wbk, gTongTenDuAn, gTongTenCongTrinh
+    If Not gTongNoUpper Then TongUpperTHKP wbk
 
     ' ---- muc TB / RAW: moi sheet 1 PDF ; cung sheet -> chung PDF ----
     Dim jIdx() As Long, nJ As Long
@@ -3816,6 +3862,16 @@ End Sub
 ' Ten du an / ten cong trinh in ra (rong = giu nguyen nhu file nguon)
 Public Sub API_SetTongTen(ByVal duAn As String, ByVal congTrinh As String)
     gTongTenDuAn = duAn: gTongTenCongTrinh = congTrinh
+End Sub
+
+' True (mac dinh) = viet HOA ca dong "Ten du an / Ten cong trinh / Ten hang muc" o THKP
+Public Sub API_SetTongUpper(ByVal b As Boolean)
+    gTongNoUpper = Not b
+End Sub
+
+' True (mac dinh) = Gia thang an cot Ma so
+Public Sub API_SetGiaThangAnMaSo(ByVal b As Boolean)
+    gGTShowMaSo = Not b
 End Sub
 
 ' Sheet can in, theo thu tu, dang "8,1,2,3,5" (rong = mac dinh)

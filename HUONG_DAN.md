@@ -43,6 +43,8 @@ File nguồn nằm ngoài thư mục file tổng → `_NGOAI THU MUC TONG\`.
    | Tên công trình in ra | thay `Tên công trình:` / `CÔNG TRÌNH :` ở mọi sheet. Trống = giữ |
    | In cột Tổng cộng | cột Tổng cộng ở Giá tổng hợp |
    | Chỉ dò link | không xuất PDF, chỉ ghi `_THU_TU_XUAT.txt` để xem trước |
+   | Viết HOA dòng tên ở THKP | `TÊN DỰ ÁN: … / TÊN CÔNG TRÌNH: … / TÊN HẠNG MỤC: …` (mặc định Có) |
+   | Giá tháng: ẩn cột Mã số | mặc định Có (cột tìm theo tiêu đề "Mã số") |
 3. Bảng chọn sheet: mỗi sheet có 2 ô **thứ tự in** — cột *File 1 hạng mục* và cột *File 2, 3… hạng mục*.
    Để trống = không in; số nhỏ in trước. Mặc định: TH chi phí TB (1), THKP (2), Giá tổng hợp (3),
    Đơn giá chi tiết (4), Giá tháng (5).

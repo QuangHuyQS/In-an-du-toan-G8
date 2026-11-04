@@ -140,8 +140,8 @@ Private Function XuatTong_PickFile(ws As Worksheet) As Boolean
     XuatTong_PickFile = True
 End Function
 
-' Doc cot thu tu (C = 1 hang muc, D = nhieu hang muc) dong 14..21 -> "8,1,2,3,5"
-'   dong : 14 TB, 15 THKP, 16 Gia TH, 17 DGCT, 18 Cong trinh, 19 Gia thang, 20 Tong hop VT, 21 TH chi phi XD
+' Doc cot thu tu (C = 1 hang muc, D = nhieu hang muc) dong 16..23 -> "8,1,2,3,5"
+'   dong : 16 TB, 17 THKP, 18 Gia TH, 19 DGCT, 20 Cong trinh, 21 Gia thang, 22 Tong hop VT, 23 TH chi phi XD
 Private Function TongSelList(ws As Worksheet, col As Long, isMulti As Boolean) As String
     Dim ids As Variant, ord(1 To 8) As Double, idx(1 To 8) As Integer, n As Integer
     Dim i As Integer, j As Integer, v As Variant, tD As Double, tI As Integer, s As String
@@ -151,7 +151,7 @@ Private Function TongSelList(ws As Worksheet, col As Long, isMulti As Boolean) A
         ids = Array(8, 1, 2, 3, 4, 5, 6, 7)
     End If
     For i = 0 To 7
-        v = ws.Cells(14 + i, col).Value
+        v = ws.Cells(16 + i, col).Value
         If ids(i) > 0 And IsNumeric(v) And Not IsEmpty(v) And CStr(v) <> "" Then
             If CDbl(v) > 0 Then n = n + 1: ord(n) = CDbl(v): idx(n) = CInt(ids(i))
         End If
@@ -201,6 +201,8 @@ Public Sub XuatTong_BatDau()
     API_SetTongDryRun dry
     API_SetTongNoDGCT False
     API_SetTongFilter ""
+    API_SetTongUpper (LCase$(Left$(Trim$(CStr(ws.Range("C12").Value)), 1)) <> "k")
+    API_SetGiaThangAnMaSo (LCase$(Left$(Trim$(CStr(ws.Range("C13").Value)), 1)) <> "k")
 
     Application.StatusBar = "Đang xuất PDF theo file tổng hợp ..."
     n = API_RunTong(sumPath, outF, inclTC, rep, fromN, toN)
