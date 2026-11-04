@@ -598,9 +598,7 @@ Private Sub THKPHideEmptyRows(ws As Worksheet)
         If Left$(up, 9) = "TEN DU AN" Then
             ws.Rows(r).Hidden = False
         ElseIf Left$(up, 13) = "THOI DIEM LAP" Then
-            rest = ""
-            If InStr(up, ":") > 0 Then rest = Trim$(Mid$(up, InStr(up, ":") + 1))
-            If rest = "" Or rest = "." Then ws.Rows(r).Hidden = True
+            ws.Rows(r).Hidden = True                    ' luon an khi in (nguoi dung yeu cau)
         End If
     Next r
 End Sub
@@ -4092,7 +4090,6 @@ End Sub
 ' An moi dong "Bang chu: ..." (so tien doc thanh chu, go tay -> de sai khi so lieu doi) tren moi sheet
 ' truoc khi in. Tim o cot A..C. Chi trong bo nho. gTongKeepBangChu = True -> giu.
 Public Sub TongHideBangChu(wbk As Workbook)
-    If gTongKeepBangChu Then Exit Sub
     Dim ws As Worksheet
     For Each ws In wbk.Worksheets
         If ws.Visible = xlSheetVisible Or InStr(NormUp2(ws.Name), "GIA THANG") > 0 Then TongHideBangChuWs ws
@@ -4100,9 +4097,8 @@ Public Sub TongHideBangChu(wbk As Workbook)
 End Sub
 
 Public Sub TongHideBangChuWs(ws As Worksheet)
-    If gTongKeepBangChu Then Exit Sub
     If ws Is Nothing Then Exit Sub
-    Dim lastR As Long, r As Long, c As Long, v As Variant
+    Dim lastR As Long, r As Long, c As Long, v As Variant, up As String
     On Error Resume Next
     lastR = 0
     lastR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
@@ -4113,7 +4109,9 @@ Public Sub TongHideBangChuWs(ws As Worksheet)
     For r = 1 To lastR
         For c = 1 To 3
             If VarType(v(r, c)) = vbString Then
-                If Left$(Trim$(NormUp2(CStr(v(r, c)))), 8) = "BANG CHU" Then
+                up = Trim$(NormUp2(CStr(v(r, c))))
+                ' "Thoi diem lap" (THKP...): luon an khi in ; "Bang chu": an tru khi chon giu
+                If Left$(up, 13) = "THOI DIEM LAP" Or (Left$(up, 8) = "BANG CHU" And Not gTongKeepBangChu) Then
                     On Error Resume Next
                     ws.Rows(r).Hidden = True
                     On Error GoTo 0

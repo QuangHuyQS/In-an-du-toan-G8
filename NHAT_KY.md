@@ -82,7 +82,18 @@ Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.
   file tool mở chỉ đọc, ẩn cửa sổ; đóng form thì tự đóng file tool.
 - Thử: file 1d (2 HM) thứ tự "3,1" → `_HM1 Xây dựng.pdf`, `_HM2 Lắp đặt.pdf`. File .bat mở được form.
 
+## Lần 11 – Đóng gói gửi người khác, ẩn "Thời điểm lập" (04/11/2026)
+- Rà mã nguồn + file xlsm: không có đường dẫn cứng, không link ngoài, chỉ tham chiếu chuẩn của Office,
+  nút gọi macro theo tên; cài đặt form lưu registry từng máy. Declare có `#If VBA7` (Excel 32/64 bit).
+- `MO_FORM_IN_AN.bat` gỡ dấu "tải từ Internet" (Unblock-File) trong thư mục của nó để Excel không chặn macro;
+  `.vbs` dùng file tool trùng tên đang mở (Excel không mở được 2 file trùng tên).
+- Gói `dist\In_an_du_toan_G8_V6.5.zip` = xlsm + .bat + .vbs + `DOC_TRUOC.txt`. Thử giải nén vào thư mục
+  có dấu/cách, gắn dấu Internet: .bat gỡ dấu, mở form, đóng form → Excel tự thoát.
+- "Thời điểm lập…" luôn ẩn khi in (mọi sheet, kể cả file nhiều HM — trước đây bị hiện lại khi tách khối).
+
 ## Chưa làm / hạn chế
+- Máy tắt VBScript (Windows sau này / chính sách công ty): .bat không chạy → mở thẳng file .xlsm.
+  Chức năng in theo file tổng cũng dùng VBScript.RegExp.
 - Đổi số thứ tự HM không tự dời tick Giá tháng (mặc định HM cuối) / TH chi phí TB (HM đầu) – tick lại tay nếu cần.
 - Chưa mở PDF để kiểm tra từng trang (môi trường không có trình xem PDF) – cần người dùng duyệt mẫu.
 - Giá tháng vẫn ẩn E, G:J theo chữ cái cột (cùng layout ở mọi file đã gặp); cột Mã số đã tìm theo tiêu đề.

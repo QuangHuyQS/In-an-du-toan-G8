@@ -1,0 +1,30 @@
+TOOL IN ẤN DỰ TOÁN G8 – V6.5
+==============================
+
+YÊU CẦU
+- Windows 10/11, Microsoft Excel 2010 trở lên (32 hoặc 64 bit, khuyên dùng Office 365 / 2016+).
+- Không cần cài thêm gì, không cần mạng.
+
+CÁCH DÙNG
+1. Giải nén cả thư mục ra một chỗ bất kỳ (Desktop, ổ D...). KHÔNG chạy trực tiếp bên trong file zip.
+   Giữ 3 file này chung một thư mục:
+     FILE_TONG_IN_G8_V6.5.xlsm   (tool)
+     MO_FORM_IN_AN.bat           (bấm đúp để mở form in)
+     MO_FORM_IN_AN.vbs           (file phụ của .bat)
+2. Mở các file dự toán G8 cần in trong Excel (hoặc chọn thư mục ngay trên form).
+3. Bấm đúp MO_FORM_IN_AN.bat → hiện form "In ấn dự toán".
+   - Form dùng chính Excel đang mở nên thấy các file dự toán đang mở.
+   - Đóng form thì file tool tự đóng.
+   Cách khác: mở trực tiếp FILE_TONG_IN_G8_V6.5.xlsm, bấm "Bật nội dung / Enable Content",
+   rồi bấm nút "Mở form in ấn dự toán".
+
+FILE NHIỀU HẠNG MỤC
+- Mỗi dòng hạng mục có ô số ở đầu (1, 2, 3...). Gõ lại số để chọn HM nào in là HM1, HM2:
+  tên PDF "..._HM1 Xây dựng.pdf", "..._HM2 Lắp đặt.pdf" và thứ tự khi ghép 1 file theo số này.
+
+NẾU KHÔNG CHẠY ĐƯỢC
+- Excel báo "Microsoft đã chặn macro" / thanh đỏ SECURITY RISK:
+  đóng Excel, chuột phải FILE_TONG_IN_G8_V6.5.xlsm → Properties → tick "Unblock" → OK.
+  (MO_FORM_IN_AN.bat đã tự làm việc này; chỉ cần làm tay khi máy chặn PowerShell.)
+- Bấm .bat không thấy gì: máy đã tắt VBScript (một số máy công ty). Dùng cách mở trực tiếp file .xlsm ở bước 3.
+- Mọi lựa chọn trên form được nhớ riêng trên từng máy, không ảnh hưởng máy khác.

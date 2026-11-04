@@ -32,8 +32,9 @@ If IsEmpty(xl) Or (TypeName(xl) <> "Application") Then
 End If
 
 Set wb = Nothing
+' Excel khong mo duoc 2 file trung ten -> file tool cung ten dang mo (o dau cung vay) thi dung luon
 For Each w In xl.Workbooks
-    If LCase(w.FullName) = LCase(best) Then Set wb = w
+    If LCase(w.Name) = LCase(fso.GetFileName(best)) Then Set wb = w
 Next
 opened = False
 If wb Is Nothing Then
