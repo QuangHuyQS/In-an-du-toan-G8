@@ -91,6 +91,15 @@ Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.
   có dấu/cách, gắn dấu Internet: .bat gỡ dấu, mở form, đóng form → Excel tự thoát.
 - "Thời điểm lập…" luôn ẩn khi in (mọi sheet, kể cả file nhiều HM — trước đây bị hiện lại khi tách khối).
 
+## Lần 12 – Video hướng dẫn, chuyển thư mục dự án (04/11/2026)
+- Dự án chuyển về `Documents\TOOL - RND7\In an du toan\In-an-G8` (giữ nguyên git, remote `fork`).
+- `MO_FORM_IN_AN.vbs` chọn file tool theo SỐ PHIÊN BẢN cao nhất (trước theo ngày sửa: chép thư mục làm
+  V6.4 "mới hơn" → mở nhầm bản không có macro mới).
+- 2 video (1920x1080, chữ chú thích tiếng Việt, khung cam + con trỏ chỉ chỗ bấm), dựng từ ảnh chụp form thật
+  chạy trên dữ liệu mẫu: `video\HD1_In_theo_file.mp4` (3 phút 13) – 1 HM, nhiều HM, đổi thứ tự HM, Tách/Ghép;
+  `video\HD2_In_ca_thu_muc.mp4` (1 phút 20). Có trang PDF thật ở cuối mỗi phần. Đã đưa vào gói zip.
+- `video/` không đưa lên git (file lớn).
+
 ## Chưa làm / hạn chế
 - Máy tắt VBScript (Windows sau này / chính sách công ty): .bat không chạy → mở thẳng file .xlsm.
   Chức năng in theo file tổng cũng dùng VBScript.RegExp.

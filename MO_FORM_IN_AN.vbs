@@ -4,16 +4,29 @@
 ' - File tool mo CHI DOC va AN cua so; dong form -> tu dong file tool.
 Option Explicit
 Dim fso, here, f, best, bestDate, xl, wb, w, created, opened
+' "FILE_TONG_IN_G8_V6.5.xlsm" -> "006.005" de so sanh dung ca V6.10
+Function VerKey(nm)
+    Dim s, p, i, k
+    s = Mid(nm, Len("FILE_TONG_IN_G8_V") + 1)
+    s = Left(s, InStrRev(s, ".") - 1)
+    p = Split(s, ".")
+    For i = 0 To UBound(p)
+        If IsNumeric(p(i)) Then k = k & Right("000" & CLng(p(i)), 3) & "." Else k = k & p(i) & "."
+    Next
+    VerKey = k
+End Function
+
 Set fso = CreateObject("Scripting.FileSystemObject")
 here = fso.GetParentFolderName(WScript.ScriptFullName)
 
 For Each f In fso.GetFolder(here).Files
     If LCase(fso.GetExtensionName(f.Name)) = "xlsm" And InStr(1, f.Name, "FILE_TONG_IN_G8_V", 1) = 1 _
        And InStr(1, f.Name, "_test", 1) = 0 And Left(f.Name, 2) <> "~$" Then
+        ' lay ban co so phien ban cao nhat (V6.5 > V6.4), khong theo ngay sua (chep file lam doi ngay)
         If IsEmpty(bestDate) Then
-            best = f.Path: bestDate = f.DateLastModified
-        ElseIf f.DateLastModified > bestDate Then
-            best = f.Path: bestDate = f.DateLastModified
+            best = f.Path: bestDate = VerKey(f.Name)
+        ElseIf VerKey(f.Name) > bestDate Then
+            best = f.Path: bestDate = VerKey(f.Name)
         End If
     End If
 Next

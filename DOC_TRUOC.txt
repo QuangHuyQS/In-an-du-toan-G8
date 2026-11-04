@@ -1,9 +1,13 @@
-TOOL IN ẤN DỰ TOÁN G8 – V6.5
+﻿TOOL IN ẤN DỰ TOÁN G8 – V6.5
 ==============================
 
 YÊU CẦU
 - Windows 10/11, Microsoft Excel 2010 trở lên (32 hoặc 64 bit, khuyên dùng Office 365 / 2016+).
 - Không cần cài thêm gì, không cần mạng.
+
+VIDEO HƯỚNG DẪN (thư mục 'Video huong dan')
+- HD1_In_theo_file.mp4   : in từng file, file nhiều hạng mục, đổi thứ tự HM1/HM2
+- HD2_In_ca_thu_muc.mp4  : xuất PDF hàng loạt cả thư mục
 
 CÁCH DÙNG
 1. Giải nén cả thư mục ra một chỗ bất kỳ (Desktop, ổ D...). KHÔNG chạy trực tiếp bên trong file zip.
