@@ -65,6 +65,14 @@ Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.
   ở mọi hộp thoại của `modInAnMain`.
 - Đẩy nhánh lên fork `QuangHuyQS/In-an-du-toan-G8` (tài khoản QuangHuyQS không có quyền ghi repo gốc).
 
+## Lần 9 – Bằng chữ, áp các sửa cho FORM in ấn (04/11/2026)
+- Ẩn dòng "Bằng chữ: …" trên mọi sheet ngay trước khi xuất (gõ tay, dễ sai khi số liệu đổi).
+- Người dùng: in theo file tổng khó dùng vì file tổng mỗi người tổ chức khác nhau → ưu tiên FORM.
+- Form (Căn chỉnh / Xem trước / In / PDF / cả thư mục) nay có đủ: THKP viết HOA + đổi tên dự án/công trình,
+  cột I, dòng tiêu đề theo STT; bỏ TH chi phí TB khi = 0; ẩn số 0; ẩn Bằng chữ; Giá tháng ẩn Mã số.
+- Tuỳ chọn cho form đọc từ sheet `IN THEO FILE TONG` (C8, C9, C12, C13) — form không dựng lại được để thêm ô.
+- Thử qua `API_Run1HM` (đúng hàm nút XUẤT PDF) trên file 9.1: OK.
+
 ## Chưa làm / hạn chế
 - Chưa mở PDF để kiểm tra từng trang (môi trường không có trình xem PDF) – cần người dùng duyệt mẫu.
 - Giá tháng vẫn ẩn E, G:J theo chữ cái cột (cùng layout ở mọi file đã gặp); cột Mã số đã tìm theo tiêu đề.
