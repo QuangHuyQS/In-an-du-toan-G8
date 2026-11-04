@@ -3477,6 +3477,36 @@ Private Function TongHmOf(ws As Worksheet, r As Long) As Integer
     Next hm
 End Function
 
+' Sheet 'TH chi phi TB' co gia tri thiet bi that (khac 0)? File chi co xay dung -> sheet TB toan so 0 -> khong in.
+' Uu tien dong "TONG CONG" cuoi cung (cot F hoac I); khong co dong tong -> xet moi o so o cot F, I.
+Private Function TongTBHasData(wbk As Workbook) As Boolean
+    TongTBHasData = False
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = FindSheetByMarkerOrName(wbk, 8)
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Function
+    Dim lastR As Long, r As Long, totR As Long, v As Variant, c As Variant
+    On Error Resume Next
+    lastR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
+    On Error GoTo 0
+    If lastR > 3000 Then lastR = 3000
+    For r = 1 To lastR
+        If Left$(Trim$(NormUp2(SafeText2(ws, r, 2))), 9) = "TONG CONG" Then totR = r
+    Next r
+    For Each c In Array(6, 9)
+        If totR > 0 Then
+            v = ws.Cells(totR, CLng(c)).Value2
+            If IsNumeric(v) And Not IsEmpty(v) Then If Abs(CDbl(v)) > 0.5 Then TongTBHasData = True: Exit Function
+        Else
+            For r = 5 To lastR
+                v = ws.Cells(r, CLng(c)).Value2
+                If IsNumeric(v) And Not IsEmpty(v) Then If Abs(CDbl(v)) > 0.5 Then TongTBHasData = True: Exit Function
+            Next r
+        End If
+    Next c
+End Function
+
 ' Hang muc (1..gHMCount) theo ten: trung khop truoc, roi chua nhau
 Private Function TongHmByName(nm As String) As Integer
     Dim k As Integer, a As String, b As String
@@ -3622,7 +3652,7 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
                 gSelN(5, hm) = True               ' Gia thang -> di kem MOI hang muc
                 gForcePdf(hm) = lstPdf(i)
             Next i
-            gSelN(6, lstHm(1)) = True              ' TH chi phi TB -> hang muc dau
+            gSelN(6, lstHm(1)) = TongTBHasData(wbk)   ' TH chi phi TB -> hang muc dau (chi khi co thiet bi)
             gOrderN(6) = 1: gOrderN(1) = 2: gOrderN(2) = 3: gOrderN(3) = 4: gOrderN(5) = 5: gOrderN(4) = 99
             gHM_XuatKieu = "TACH"
             gHM_TenTheoHM = False
@@ -3652,7 +3682,7 @@ Private Sub TongDoFile(path As String, jIdxIn() As Long, nJIn As Long, inclTong 
         For k = 1 To SHEET_COUNT
             gSelSheet(k) = False: gOrder(k) = 99
         Next k
-        gSelSheet(8) = True: gOrder(8) = 1      ' TH chi phi TB
+        gSelSheet(8) = TongTBHasData(wbk): gOrder(8) = 1   ' TH chi phi TB (chi khi co thiet bi)
         gSelSheet(1) = True: gOrder(1) = 2      ' THKP
         gSelSheet(2) = True: gOrder(2) = 3      ' Gia tong hop
         gSelSheet(3) = Not gTongNoDGCT: gOrder(3) = 4      ' Don gia chi tiet
