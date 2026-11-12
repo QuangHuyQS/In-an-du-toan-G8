@@ -19,7 +19,7 @@ Private mHover As String
 Private mLoading As Boolean
 Private mLog As String
 
-Private Const BTN_LIST As String = "btnOpenFile,btnRefresh,btnFolder,btnAll,btnNone,btn5,btnOut,btnOutClr,btnAlign,btnPreview,btnPrint,btnPDF,btnClose"
+Private Const BTN_LIST As String = "btnOpenFile,btnRefresh,btnFolder,btnAll,btnNone,btn5,btnOut,btnOutClr,btnAlign,btnPreview,btnPrint,btnPDF,btnClose,btnTong"
 Private Const ROWS_MAX As Integer = 20
 Private Const ROW_H As Single = 20
 
@@ -29,6 +29,7 @@ Private Const ROW_H As Single = 20
 Private Sub UserForm_Initialize()
     Dim v As Variant, r As Integer
     Set mBtns = New Collection
+    MakeTongBtn
     For Each v In Split(BTN_LIST, ",")
         WireBtn CStr(v), Me.Controls(CStr(v))
         WireBtn CStr(v), Me.Controls(CStr(v) & "_t")
@@ -70,6 +71,23 @@ Private Sub MakeOrderBoxes()
         t.Visible = False
         l.Left = l.Left + 24: l.Width = l.Width - 24
     Next r
+End Sub
+
+' Nut "In theo file tong..." (tao luc chay, nhai kieu nut btnRefresh): mo che do in theo FILE TONG HOP
+Private Sub MakeTongBtn()
+    Dim b As Object, t As Object, sb As Object, st As Object
+    Set sb = Me.Controls("btnRefresh"): Set st = Me.Controls("btnRefresh_t")
+    Set b = Me.Controls.Add("Forms.Label.1", "btnTong", True)
+    b.Left = 620: b.Top = 63: b.Width = 88: b.Height = 20
+    b.BackColor = sb.BackColor: b.BorderStyle = sb.BorderStyle: b.SpecialEffect = sb.SpecialEffect
+    b.BorderColor = sb.BorderColor: b.Caption = "": b.Tag = "1"
+    b.ControlTipText = "In theo FILE TỔNG HỢP: đi theo link tới từng file dự toán + hạng mục, in đúng thứ tự bảng tổng"
+    Set t = Me.Controls.Add("Forms.Label.1", "btnTong_t", True)
+    t.Left = 620: t.Top = 66.85: t.Width = 88: t.Height = st.Height
+    t.BackStyle = 0: t.Caption = "In theo file tổng": t.TextAlign = st.TextAlign
+    t.Font.Name = st.Font.Name: t.Font.Size = st.Font.Size: t.Font.Bold = st.Font.Bold
+    t.ForeColor = st.ForeColor
+    t.ControlTipText = b.ControlTipText
 End Sub
 
 Private Sub WireBtn(nm As String, ctl As Object)
@@ -544,6 +562,7 @@ Public Sub OnBtn(nm As String)
         Case "btnPrint":    DoRun "PRINT"
         Case "btnPDF":      DoRun "PDF"
         Case "btnClose":    CloseForm
+        Case "btnTong":     SaveSettings: modInAnMain.XuatTong_TuForm
     End Select
 End Sub
 

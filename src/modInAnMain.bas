@@ -153,6 +153,17 @@ Public Sub XuatTheoFileTong()
            "điền Tên dự án nếu muốn thay, rồi bấm  ▶ BẮT ĐẦU XUẤT.", vbInformation, "Xuất PDF theo file tổng hợp"
 End Sub
 
+' Goi tu form (nut "In theo file tong"): hien cua so file tool (neu dang an do MO_FORM_IN_AN.bat), sang sheet cau hinh
+Public Sub XuatTong_TuForm()
+    gTuBat = False                      ' dang dung sheet cau hinh -> dong form khong tu dong file tool
+    On Error Resume Next
+    ThisWorkbook.Windows(1).Visible = True
+    Application.Visible = True
+    ThisWorkbook.Activate
+    On Error GoTo 0
+    XuatTheoFileTong
+End Sub
+
 ' Nut "Chon file tong hop..." tren sheet cau hinh
 Public Sub XuatTong_ChonFile()
     Dim ws As Worksheet: Set ws = TongCfgSheet()
@@ -247,6 +258,8 @@ Public Sub XuatTong_BatDau()
     API_SetTongDryRun dry
     API_SetTongNoDGCT False
     API_SetTongFilter ""
+    API_SetTongSheetName CStr(ws.Range("C14").Value)
+    API_SetTongRowSel RowSelString()
     API_SetTongUpper (LCase$(Left$(Trim$(CStr(ws.Range("C12").Value)), 1)) <> "k")
     API_SetGiaThangAnMaSo (LCase$(Left$(Trim$(CStr(ws.Range("C13").Value)), 1)) <> "k")
 
@@ -254,9 +267,12 @@ Public Sub XuatTong_BatDau()
     n = API_RunTong(sumPath, outF, inclTC, rep, fromN, toN)
     Application.StatusBar = False
     API_SetTongDryRun False
+    If dry Then BuildRowSelSheet ws
     If dry Then
         MsgBoxU "Chạy khô xong (không xuất PDF). Danh sách + nguồn từng mục:" & vbCrLf & _
-               outF & "\_THU_TU_XUAT.txt", vbInformation, "Xuất PDF theo file tổng hợp"
+               outF & "\_THU_TU_XUAT.txt" & vbCrLf & vbCrLf & _
+               "Muốn chọn sheet in riêng cho từng dòng: mở sheet CHON SHEET THEO MUC" & vbCrLf & _
+               "(gõ x vào sheet cần in, ô C2 = Có), rồi chạy với 'Chỉ dò link' = Không.", vbInformation, "Xuất PDF theo file tổng hợp"
         On Error Resume Next
         CreateObject("Shell.Application").Open CVar(outF & "\_THU_TU_XUAT.txt")
         On Error GoTo 0
@@ -274,3 +290,103 @@ Public Sub XuatTong_BatDau()
         MsgBoxU "Không xuất được PDF nào." & vbCrLf & Left$(rep, 800), vbExclamation, "Xuất PDF theo file tổng hợp"
     End If
 End Sub
+
+' ============================================================================
+'  Bang chon sheet in rieng theo tung dong cua file tong (sheet "CHON SHEET THEO MUC")
+'  Sinh sau moi lan CHAY KHO. Cot G..L = ma sheet 1..6 (THKP, Gia TH, DGCT, Cong trinh, Gia thang, TH chi phi TB)
+' ============================================================================
+Private Function RowSelName() As String: RowSelName = "CHON SHEET THEO MUC": End Function
+
+Private Sub BuildRowSelSheet(cfg As Worksheet)
+    Dim v As Variant: v = API_TongItems()
+    If IsEmpty(v) Then Exit Sub
+    Dim ws As Worksheet, i As Long, k As Long, r As Long, n As Long, ord As Variant, def(1 To 6) As Boolean
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(RowSelName())
+    On Error GoTo 0
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add(After:=cfg)
+        ws.Name = RowSelName()
+    End If
+    Dim keepApply As String: keepApply = "Không"
+    If Len(CStr(ws.Range("C2").Value)) > 0 Then keepApply = CStr(ws.Range("C2").Value)
+    ws.Cells.Clear
+    ws.Cells.Font.Name = "Arial": ws.Cells.Font.Size = 10
+    ' mac dinh = cau hinh cot D cua sheet IN THEO FILE TONG: dong 16 TB(6), 17 THKP(1), 18 GTH(2), 19 DGCT(3), 20 CT(4), 21 GT(5)
+    ord = Array(6, 1, 2, 3, 4, 5)
+    For i = 0 To 5
+        If IsNumeric(cfg.Cells(16 + i, 4).Value) And Not IsEmpty(cfg.Cells(16 + i, 4).Value) Then
+            If CDbl(cfg.Cells(16 + i, 4).Value) > 0 Then def(ord(i)) = True
+        End If
+    Next i
+    ws.Range("B1").Value = "CHỌN SHEET IN RIÊNG THEO TỪNG DÒNG CỦA BẢNG TỔNG HỢP"
+    ws.Range("B1").Font.Size = 13: ws.Range("B1").Font.Bold = True
+    ws.Range("B2").Value = "Áp dụng bảng này khi xuất PDF (Có / Không):"
+    ws.Range("B2").Font.Bold = True
+    ws.Range("C2").Value = keepApply
+    With ws.Range("C2").Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:="Có,Không"
+    End With
+    ws.Range("C2").Interior.Color = RGB(255, 242, 204)
+    ws.Range("B3").Value = "Gõ x vào ô sheet cần in cho dòng đó (xóa x = không in). Dòng xám = in nguyên sheet / không có file dự toán nên không chọn được. Bảng được dựng lại mỗi lần Chạy khô."
+    Dim hdr As Variant
+    hdr = Array("TT", "Nhãn", "Hạng mục trong file tổng", "Giá trị", "File nguồn", "Vị trí", "THKP", "Giá tổng hợp", "Đơn giá chi tiết", "Công trình", "Giá tháng", "TH chi phí TB", "")
+    For k = 0 To 11: ws.Cells(5, 1 + k).Value = hdr(k): Next k
+    With ws.Range("A5:L5")
+        .Font.Bold = True: .Font.Color = RGB(255, 255, 255): .Interior.Color = RGB(51, 65, 85)
+        .WrapText = True: .VerticalAlignment = xlCenter: .HorizontalAlignment = xlCenter
+    End With
+    n = UBound(v, 1)
+    For i = 1 To n
+        r = 5 + i
+        ws.Cells(r, 1).Value = CLng(Val(CStr(v(i, 1))))
+        ws.Cells(r, 2).Value = "'" & CStr(v(i, 2))
+        ws.Cells(r, 3).Value = CStr(v(i, 3))
+        ws.Cells(r, 4).Value = "'" & CStr(v(i, 4))
+        ws.Cells(r, 5).Value = CStr(v(i, 5))
+        ws.Cells(r, 6).Value = CStr(v(i, 6))
+        ws.Cells(r, 13).Value = CStr(v(i, 7))
+        If CStr(v(i, 7)) = "1" Then
+            For k = 1 To 6
+                If def(k) Then ws.Cells(r, 6 + k).Value = "x"
+            Next k
+            ws.Range(ws.Cells(r, 7), ws.Cells(r, 12)).Interior.Color = RGB(255, 255, 255)
+            ws.Range(ws.Cells(r, 7), ws.Cells(r, 12)).Locked = False
+        Else
+            ws.Range(ws.Cells(r, 1), ws.Cells(r, 12)).Interior.Color = RGB(226, 232, 240)
+        End If
+    Next i
+    ws.Columns("M").Hidden = True
+    With ws.Range(ws.Cells(5, 1), ws.Cells(5 + n, 12))
+        .Borders.Color = RGB(203, 213, 225)
+        .VerticalAlignment = xlCenter
+    End With
+    ws.Range(ws.Cells(6, 7), ws.Cells(5 + n, 12)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(6, 4), ws.Cells(5 + n, 4)).HorizontalAlignment = xlRight
+    ws.Columns("A").ColumnWidth = 5: ws.Columns("B").ColumnWidth = 14: ws.Columns("C").ColumnWidth = 46
+    ws.Columns("D").ColumnWidth = 16: ws.Columns("E").ColumnWidth = 34: ws.Columns("F").ColumnWidth = 16
+    ws.Columns("G:L").ColumnWidth = 11
+    ws.Rows(5).RowHeight = 32
+End Sub
+
+' "seq=ids;seq=ids" tu sheet CHON SHEET THEO MUC khi C2 = Co ; rong neu khong ap dung
+Private Function RowSelString() As String
+    Dim ws As Worksheet, r As Long, last As Long, k As Long, ids As String, s As String
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(RowSelName())
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Function
+    If LCase$(Left$(Trim$(CStr(ws.Range("C2").Value)), 1)) <> "c" Then Exit Function
+    last = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 6 To last
+        If CStr(ws.Cells(r, 13).Value) = "1" And IsNumeric(ws.Cells(r, 1).Value) Then
+            ids = ""
+            For k = 1 To 6
+                If LCase$(Trim$(CStr(ws.Cells(r, 6 + k).Value))) = "x" Then ids = ids & IIf(Len(ids) > 0, ",", "") & k
+            Next k
+            s = s & IIf(Len(s) > 0, ";", "") & CLng(ws.Cells(r, 1).Value) & "=" & ids
+        End If
+    Next r
+    RowSelString = s
+End Function

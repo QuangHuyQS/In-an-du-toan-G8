@@ -109,3 +109,142 @@ Dự án thử: `M:\DUTOAN\2026\01. BT2.MAG\...\260724. THDT LT\0. TH LUONG TAI.
 - Tuỳ chọn trên form `frmInDuToan` (in từng file) chưa có ô Tên dự án / viết hoa – mới có ở in theo file tổng.
 - Tuỳ chọn bỏ Đơn giá chi tiết và lọc theo thư mục chưa có nút trên giao diện.
 - Form `frmInDuToan` giữ nguyên (VBE Designer báo lỗi 75 khi dựng lại bằng code).
+
+## Lần 13 – In theo bảng tổng hợp: chọn sheet, dò ngược link về đúng hạng mục, nhãn cha–con (04/11/2026)
+- Lỗi: file `260709.TH DZ TBA - LT.xlsx` có 4 sheet (THC, TK, TMDT HT, TKCS LT); tool tự chọn sheet "nhiều link nhất" = TKCS LT
+  → dò sai bảng. Thêm ô **C14 "Sheet của file tổng cần dò link"** (trống = tự chọn như cũ); báo cáo liệt kê sheet + số link nếu gõ sai tên.
+- Link vào sheet trung gian của file dự toán (vd `'TH chi phí XD'!C5`) trước đây chỉ in "cả file"/đoán theo tên hạng mục.
+  Nay `TongTraceThkpRow` dò công thức nội bộ của ô đó (qua mọi sheet trung gian) đến dòng THKP mà ô lấy giá trị
+  → xác định CHÍNH XÁC hạng mục (file nhiều HM chỉ in khối của HM đó, không phụ thuộc tên). Trên THC: 30/30 mục đầu đều ra "THKP dòng N".
+- Nhãn phân cấp theo bảng tổng cha–con (`TongRowLabel`, theo SUBTOTAL/SUM bao quanh): `I-2.1-a-1`, `I-2.1-b-4`… (trước là `I-` trùng nhau).
+  Thứ tự PDF vẫn theo thứ tự dòng bảng tổng.
+- Báo cáo `_THU_TU_XUAT.txt` thêm "giá trị" của ô link để đối chiếu với số trên bảng tổng.
+- Thử: chạy khô THC → đủ mục, nhãn đúng; xuất thật mục 7–8 (file 2c nhiều HM) → 2 PDF riêng (16 và 14 trang), mỗi PDF 1 hạng mục.
+- Chưa làm: duyệt nội dung PDF bằng mắt; chọn sheet in riêng cho từng dòng bảng tổng (hiện chọn chung theo bảng thứ tự sheet).
+- (Lần 13b) Chọn sheet in riêng theo từng dòng bảng tổng: sau CHẠY KHÔ tool dựng sheet `CHON SHEET THEO MUC`
+  (mỗi dòng: nhãn, hạng mục, giá trị, file nguồn, vị trí + 6 cột sheet THKP / Giá TH / ĐGCT / Công trình / Giá tháng / TH chi phí TB; gõ `x` để in).
+  Ô C2 = Có thì lần xuất thật dùng bảng này; Không thì dùng cấu hình chung. Engine: `API_SetTongRowSel "7=1;8=1,2"`, `API_TongItems`.
+  Thử: mục 7 chỉ THKP → 1 trang; mục 8 THKP+Giá TH → 5 trang (trước 16 và 14 trang khi in đủ).
+- (Lần 13c) Form `frmInDuToan` có nút "In theo file tổng" (tạo lúc chạy `MakeTongBtn`, cạnh nút Chọn thư mục): gọi `XuatTong_TuForm`
+  → hiện cửa sổ file tool (đang ẩn khi mở bằng .bat), sang sheet IN THEO FILE TONG. Đóng form sau đó không tự đóng file tool.
+  Đã đóng gói `dist\In_an_du_toan_G8_V6.6(.zip)`.
+
+
+Lan 14: sua (1) PDF tach hang muc cua sheet Cong trinh tu HM2 tro di thieu tieu de + header cot; (2) TH chi phi TB bi cat sau dong STT dau (ra bang thiet bi trong).
+Lan 15: FixHashCells - noi cot khi o so/ngay hien ### (ke ca chua hao 12% cho font khi in PDF).
+Lan 16: Cong trinh khong AutoFit cot F nua (o khong xuong dong lam cot F gian 185 -> ca bang co 1 trang); F > 60 dua ve 40 + bat xuong dong o dai (CTCapDanhMuc, CTWrapDanhMuc).
+Lan 17: Cong trinh - o Danh muc da xuong dong nhung dong co dinh chieu cao thap (chu bi cat/de) -> AutoFit dong + 10% chua hao khi in.
+
+Lan 16: phan mem desktop V7.0 (app\InAnG8.cs, WinForms + Windows.Data.Pdf, loi VBA qua COM): APP_Detect / APP_Run (gCustomN chon sheet tung HM) / APP_TongSheets / APP_Tong.
+Lan 17: Gia tong hop file nhieu HM mat dong TONG HANG MUC / TONG CONG TRINH / LAM TRON - SheetLastRow2 dung End(xlUp) bo qua dong an (khoi HM khac da an) -> doi sang LastRowAnyCol (Find xlFormulas) + xet cot C,I,K,L cho idx 2. APP_Run goi macro kem ten file loi.
+Lan 18: Gia tong hop xuat TACH: moi HM dung o dong TONG HANG MUC (bo TONG CONG TRINH / LAM TRON o PDF HM cuoi); xuat GHEP van giu.
+
+## Lần 19 – Bản 7.1: luật TH chi phí TB theo tên HM, tab file tổng có xem trước, tách vùng (05/11/2026)
+- Luật TB: sheet TH chi phí TB chỉ mặc định in kèm hạng mục có tên chứa "LẮP ĐẶT" / "THIẾT BỊ" (bỏ dấu, không phân biệt hoa thường).
+  Lõi: `HmIsTB` (dùng `KindFromName`), `HmName1` (tên HM file 1 HM ở THKP), `ApplyTemplateSel` cột 6, `TongDoFile` (N HM: mọi HM thiết bị;
+  1 HM: theo `HmName1`, không có thì tên dòng bảng tổng; mục "cả file" có chọn riêng: TB chỉ HM thiết bị). `APP_Detect` trả tên HM cho file 1 HM.
+  Phần mềm: `Vn.IsTB`, mặc định sheet + "Áp cho mọi file" theo luật; ô TB tô xanh + ● ; tick tay TB cho HM xây dựng → cảnh báo.
+- File tổng: `API_TongItems` 13 cột (thêm đường dẫn, dòng THKP, loại, tên HM trung gian, dòng bảng tổng, chuỗi dòng cha `TongParentChain`);
+  `APP_TongOne` (xem trước 1 mục = xuất thật riêng mục đó, `API_RunTong` fromLeaf=toLeaf); `APP_HmMap` (dòng THKP → HM k);
+  rowSel "seq=0" → `Skip` (không xuất, kể cả mục TB / nguyên sheet). Giá trị số định dạng #,##0 (tránh ###).
+- Thiết kế UI do Antigravity làm (BRIEF_2/THIET_KE_2, BRIEF_3/THIET_KE_3). Tab 2: DataGridView vẽ tay thành cây có cột (ô tick 3 trạng thái,
+  ▸/▾, chip sheet, trạng thái), xem trước + chọn PDF, bảng tùy chọn mục, hộp báo cáo kết quả + file BAO_CAO_XUAT_*.txt.
+- Bố cục: vùng L/C/R mỗi tab có ⧉ tách cửa sổ / « » thu gọn dải 32 px; khung xem trước nổi dùng chung 2 tab (F9); F6/F7/F8, Ctrl+R, F11;
+  < 1000 px: thanh trên/dưới tự xuống dòng, ẩn cột File nguồn, tự thu gọn vùng phải; lưu bố cục + độ rộng cột trong caidat.txt.
+  Cột cây đổi sang Fill + FillWeight (trước cột tên là Fill duy nhất → kéo hẹp không được).
+- Chống sót EXCEL.EXE: Excel nền gắn vào Job Object KILL_ON_JOB_CLOSE (phần mềm văng / bị tắt cưỡng bức → Excel tắt theo; đã thử Stop-Process -Force);
+  đóng thường: chờ 8 s rồi Kill; dự phòng file excel_pid.txt. Sửa mục kẹt "Đang tạo…" khi việc xem trước trong hàng đợi bị thay.
+- Thử: file tổng THC 34 mục / 23 nhóm; mục 26 (HM LẮP ĐẶT) 26 trang có 15 trang TB; mục 4 (HM XÂY DỰNG) 12 trang không TB;
+  xuất thật chỉ tick 4, 23, 26 → 3 PDF. Tham số chạy thử: `InAnG8.exe --tong <file tổng> <sheet> <số mục>`.
+- Gói: `dist\In_an_du_toan_G8_V7.1(.zip)`.
+
+## Lần 20 – Bỏ dấu phẩy thừa ở số nguyên (12/11/2026)
+- Lỗi: G8 định dạng `#.##0,####` (ĐGCT 5–6 số lẻ) → số nguyên in "1," "4," "8," (Định mức, Hệ số, Số C.K, KL…).
+- `FixIntDecimals` (gọi trước AutoFit ở `ApplySettingsToWorksheet`, `ApplyPageSetup2`, và mục "in nguyên sheet" của file tổng):
+  đọc cả vùng in 1 lần; ô số có giá trị làm tròn theo số chữ số lẻ của định dạng = số nguyên → gán định dạng bỏ phần `.###`
+  (`NfDropHashDecimals`, có bộ nhớ đệm theo định dạng). Số có phần lẻ, định dạng có `0` bắt buộc hoặc chuỗi "…" giữ nguyên. Chỉ trong bộ nhớ.
+- Thử: TXL HM1 381 → 0 số thừa dấu phẩy (6 chỗ còn lại là chữ trong diễn giải "mác 100, …"); TXL HM4 193 → 0; 1d HM1 1.247 → 0;
+  số có phần lẻ không đổi (618 / 349 / 225). Thời gian xuất không đổi (TXL 56,8 s).
+- Phụ: cột số hẹp lại → ĐGCT TXL HM4 chữ to hơn (12,0 → 12,7 pt), thêm 1 trang (19 → 20).
+- Đã chép xlsm build mới vào `app\bin`; CHƯA đóng gói lại `dist\` (V7.1 / V6.6).
+
+## Lần 21 – Tăng tốc xem trước / xuất (12/11/2026)
+- Đo từng bước (`API_ProfStart` / `API_ProfDump`, `ProfMark` – tắt mặc định, không tốn gì). File TXL 4 HM 55 s, chậm nhất:
+  kẻ viền hairline→thin 17 s, gán PageSetup + xoá header/footer 13,6 s, ép hướng giấy 2 lần 7,5 s, xuất PDF 6,8 s.
+- Nguyên nhân chính: lõi bật `ScreenUpdating = True` (tránh lỗi 1004 khi Activate) → mỗi lần đổi viền/cột Excel vẽ lại.
+  Tắt `ScreenUpdating` trong `HairToThin` và các bước FixIntDecimals / AutoFit / HideColsFinal2 / FixHashCells (không Activate ở đó).
+- Header/footer chỉ xoá khi thật sự có chữ (bỏ 12 lệnh EvenPage/FirstPage); nhánh nhiều HM: mỗi sheet xoá 1 lần / file (`mHFDone`).
+- `ForceOrientation` / `ForceOri2`: đã đúng A4 + hướng thì không gán lại.
+- Viền: `HairToThin` (đọc Weight trước, chỉ hairline mới đọc LineStyle) thay vòng lặp cũ ở 2 nhánh.
+  Đã thử và BỎ: hỏi viền theo khối (`Borders(xlInsideHorizontal)` / viền dưới của cả dòng trả giá trị ô đầu, không báo lẫn lộn)
+  và Tìm/Thay theo định dạng (không bắt được viền) – cả hai làm mất bước đổi viền mờ.
+- Đã thử và BỎ: AutoFit chỉ trong vùng in → đổi độ rộng cột so với bản cũ.
+- Kết quả 6 file `Test` (cùng lệnh, đủ sheet): 165,6 s → 81,5 s; TXL 51 → 25 s; 10. ĐM38 12,7 → 8,1 s; 2. ĐM38 38,5 → 14,3 s.
+  So từng trang (ảnh 60 dpi): 238/238 trang giống hệt bản trước khi tăng tốc.
+- Phần mềm (tab 1): file nhiều HM chỉ dựng HM đang xem (`CustNOnly`: HM khác "0"), xong tự chạy ngầm HM kế tiếp
+  (việc "prefetch" trong hàng đợi, bị bỏ khi người dùng bấm việc khác); bản xem trước gộp theo HM, theo `PreviewGen`.
+  TXL: HM1 hiện sau ~9 s (trước ~56 s cho cả 4 HM), HM2–4 xong ngầm sau ~40 s.
+- Lỗi chưa rõ gốc: trong phần mềm, lần APP_Run thứ 2 ngay sau lần đầu đôi khi làm Excel nền chết (DISP_E_EXCEPTION; ngoài phần mềm
+  chạy 24 lần liên tiếp không lỗi; Event Log không có crash). Thêm `Engine.RunRetry`: Excel chết → khởi động lại + thử lại 1 lần
+  (không sót EXCEL.EXE; đã kiểm đóng phần mềm → Excel nền tắt). Mất thêm ~3 s khi xảy ra.
+- Đã chép `InAnG8.exe` + xlsm vào `app\bin`. CHƯA đóng gói `dist\`, chưa commit.
+
+## Lần 22 – Tên trên bản in: lõi + dữ liệu phần mềm (12/11/2026)
+- Quét 6 file Test: dòng tên ở cột A (ô gộp). THKP: "Tên dự án/công trình/hạng mục:" dòng 2–4 mỗi khối (khối ≥2 là `=A2`, `=A3`);
+  Giá TH / ĐGCT / Giá tháng / TB: "CÔNG TRÌNH :" = `='Công trình'!A2`, "HẠNG MỤC:" = `='Công trình'!F<dòng HM>`.
+- `APP_Detect` thêm cột 7, 8: tên dự án, tên công trình đang có trong file (`ReadLabelText`).
+- `API_SetTongTen` nay bật `gNamesFromApi` → `TongLoadUiOptions` không đọc đè bằng ô C8/C9 trống của tool (trước đây phần mềm không đổi tên được).
+- Đổi tên HM khi in: `API_SetHmRename "k=tên"` (vbLf). `ApplyHmRenameSheet`: trong vùng in, cột A..F, ô chữ có nội dung (sau 1–4 lớp nhãn "…:")
+  trùng tên cũ → tên mới, giữ nhãn, giữ HOA; ô công thức bị thay bằng chữ. Tên cũ = tên THKP + tên ở dòng HM sheet Công trình (`CtHmAlias`).
+  Gọi sau dàn trang (nhánh N HM theo từng HM; nhánh 1 HM với HM 1) → nhận khối / luật TB vẫn theo tên gốc. Tên PDF (`HmSuffix`, tick tên HM) dùng tên mới.
+- Thử: TXL đổi HM2 + dự án + công trình → mọi sheet đổi đúng, cả "Tổng cộng: HANG MỤC: …"; 9.2b (1 HM) đúng; file 10 không đổi tên → chữ PDF y hệt bản trước.
+- Phần mềm (InAnG8.cs): FileItem `DuAnGoc/CongTrinhGoc/DuAnRieng/CongTrinhRieng/HmTen`, `HmRenameString`, `HmGoc`; MainForm `GlobalDuAn/GlobalCongTrinh`
+  (lưu caidat `ten_duan`, `ten_congtrinh`), `EffDuAn/EffCongTrinh/ShownDuAn/ShownCongTrinh`, `NamesChanged`, `NameConflicts`, `NamesUiRefresh`;
+  `EngSetNames` gửi tên trước mỗi APP_Run (xem trước, xuất) và APP_Tong/APP_TongOne (tên chung, không đổi tên HM).
+- Hợp đồng UI mục D; BRIEF_5 giao Antigravity (thanh tên chung, bảng tên lệch – Test có 2 tên công trình: "…LƯƠNG TÀI" 4 file / "…ĐÔNG CỨU 1" 3 file,
+  ghi đè từng file, sửa tên HM trên lưới). Đang chờ XONG_5.
+- Lưu ý: sửa file .cs bằng Python heredoc làm "\r" thành ký tự CR thật → lỗi biên dịch; viết script ra file (.py) rồi chạy.
+
+## Lần 23 – Giao diện Tên trên bản in (BRIEF_5, Antigravity) (12/11/2026)
+- Antigravity: `NamesUi.cs` (mới: thanh "Tên trên bản in" chung 2 tab, hộp "Tên khác nhau giữa các file", vùng "Tên trên bản in (file này)"),
+  sửa `Tab1Ui.cs` (sửa tên HM trên lưới / ô tên cho file 1 HM, cây hiện tên mới + "đã đổi tên"), `PreviewUi.cs` (`ResolveTitle`), `LayoutUi.cs` (`lay_namesbar`).
+- Biên dịch được ngay. Chạy thật trên 7 file Test: đặt Công trình chung + đổi tên HM2 file TXL trên lưới → xem trước HM2: THKP, Giá TH, Công trình,
+  dòng "Tổng cộng" đều tên mới; tiêu đề khung xem trước theo tên mới. Hộp lệch tên: Công trình 2 nhóm (4 / 3 file), Dự án đồng nhất – đúng.
+  Đóng phần mềm → Excel nền tắt; tên thử đã xoá (caidat `ten_duan=`, `ten_congtrinh=` trống).
+- Còn lệch nhỏ: dòng gợi ý dưới lưới HM bị nút "↺ Gốc tất cả" che chữ cuối; tiêu đề cột lưới HM bị cắt ("ƏGCT", có từ trước).
+- Đã chép exe + xlsm vào `app\bin`. CHƯA đóng gói dist, chưa commit.
+
+## Lần 24 – Co kéo cơ động + hiện tên Dự án (BRIEF_5b → LOI_5b → 5c, Antigravity) (12/11/2026)
+- 5b: kéo được độ rộng cột lưới HM (nháy đúp = vừa chữ), thanh chia lưới ↔ thứ tự sheet, tỉ lệ 2 ô tên, cột ảnh nhỏ xem trước, chiều cao nhật ký,
+  hộp báo cáo / tên lệch; lưu khoá lay_* (lay_names_ratio, lay_gridn_cols, lay_gridn_h, lay_t2_info_h, lay_log_h, lay_prev_thumbs, lay_rep_win,
+  lay_rep_split, lay_rep_cols, lay_conf_win). Ô tên trống hiện "Đang in theo file: …"; tiêu đề THKP / ĐGCT hết bị cắt; gợi ý dưới lưới hết bị nút che.
+- Lỗi 5b (1440×900): khung "Tên trên bản in (file này)" mở sẵn, ép lưới còn 2/4 HM, thứ tự sheet 3/6, mất nút Xuống / Áp cho mọi file → LOI_5b.md.
+- 5c: khung tên mặc định thu gọn (nút tiêu đề bấm thu / mở được), vùng phải tab 1 bọc pnlRightScroll (AutoScroll), lưới tối thiểu đủ số HM (≤ 6),
+  thứ tự sheet đủ 6 dòng + 3 nút. Chạy thật 1440×900 (thu gọn / mở rộng → cuộn dọc) và 1000 px: đạt. Ảnh BAO_CAO_2026-11-12\anh\c5_*.png.
+- Bản trước 5b lưu ở UI_PHAN_MEM_IN_G8\_BAN_TRUOC_5b\. Đã chép exe vào app\bin (xlsm không đổi). CHƯA đóng gói dist, chưa commit.
+
+## Lần 25 – Việc 4: thứ tự sheet + hướng dọc / ngang riêng từng mục file tổng (12/11/2026)
+- Lõi VBA: chuỗi chọn sheet nhận hậu tố hướng "1N,4D,2" (N ngang, D dọc, không hậu tố = mặc định). `TongParseSel` bỏ hậu tố;
+  `TongParseOri` đọc hướng; `gOriN(sheet, HM)`, `gOri1(sheet)`, `gOrdNH(sheet, HM)` (thứ tự riêng từng HM), `gCurHm`; `OriPick2/OriPick1`
+  trong ForceOri2 / ApplyPageSetup2 / ForceOrientation; `ResetOriOrd` đầu APP_Run, đầu + cuối mỗi file trong file tổng.
+  Tab 1 (custN) cũng nhận thứ tự / hậu tố hướng (chưa có UI).
+- C#: `TongItem.Ord`, `Ori`, `EffOrder/EffOri/DefOri/HasCustomLayout/ResetLayout`, `SelString()` gửi hậu tố; `ItemLayoutChanged`;
+  TongApplyAll chép cả thứ tự + hướng; TongDefaults xoá. HOP_DONG_UI mục E.
+- Kiểm: gọi lõi trực tiếp (4 HM: HM1 CT ngang → ĐGCT → THKP; HM2 GTH dọc → THKP; 1 HM: ĐGCT ngang → THKP dọc) – PDF đúng thứ tự, đúng hướng.
+  Hồi quy mặc định 7 file Test: 238/238 trang giống hệt bản cũ, ~98 s.
+- UI (Antigravity BRIEF_6 + LOI_6 → 6b): danh sách 6 sheet theo thứ tự, nút Dọc/Ngang (khác mặc định tô vàng "Dọc*"), ▲/▼, "★ Đã chỉnh · ↺ Về mặc định",
+  cây hiện "THKP·D"; vùng phải tab 2 rộng hơn (DefR 0.23). Chạy thật file tổng 260709.TH DZ TBA - LT.xlsx (34 mục): mục 04 THKP dọc → PDF trang 1 dọc.
+- Đã chép exe + xlsm vào app\bin (và xlsm gốc In-an-G8\). CHƯA đóng gói dist, chưa commit.
+- Còn nhỏ: khi hiện dòng "★ Đã chỉnh", nút "Cập nhật xem trước" bị đẩy xuống mép dưới (phải cuộn) ở 1440×900.
+
+## Lần 26 – Việc 2: ô hiện ### (12/11/2026)
+- Hiện trạng: lõi đã có 3 lớp (AutoFit cột số theo từng sheet → FixHashCells nới cột tới khi hết ### → chừa 12 % hao phông khi in).
+  Quét 238 trang PDF 7 file Test + PDF xem trước file tổng: 0 chỗ "###".
+- Sửa: (1) `TongExportSheetJob` (mục file tổng "in nguyên sheet" / TB) trước đây KHÔNG xử lý ### → thêm FixHashCells.
+  (2) FixHashCells bước 1 nới cột có giới hạn `HASH_MAX_GROW` = +30 % (ít nhất +3); quá giới hạn vẫn ### → tắt xuống dòng + ShrinkToFit RIÊNG ô đó
+  (không làm nhỏ cả trang). (3) Nhật ký `gHashLog` / `API_HashLog()`; phần mềm ghi vào Nhật ký sau mỗi file xuất và vào báo cáo xuất file tổng.
+- Thử ép: số 98.765.432.109.876 vào ô A9 sheet Công trình (cột 5,7): cột nới 5,7 → 8,7 rồi thu chữ riêng ô → PDF hiện đủ số.
+- BÀI HỌC: KHÔNG dùng `Set-Content -Encoding ascii` (PowerShell) để sửa src – làm hỏng 2 dòng có dấu trong HmSuffix ("Lắp đặt" → "L???p")
+  → tên PDF có "?" → lỗi 1004 "Document not saved" ở file có HM Lắp đặt / Xây dựng. Đã khôi phục từ git HEAD.
+- Hồi quy: 238 trang, nội dung giống; riêng bảng ĐGCT file TXL đôi khi lệch ngang 3 pt GIỮA 2 LẦN CHẠY CÙNG BẢN (nhiễu có sẵn, không do sửa lần này).
+- Đã chép exe + xlsm vào app\bin. Chưa đóng gói dist, chưa commit.

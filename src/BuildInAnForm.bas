@@ -165,7 +165,8 @@ Private Sub BuildTongCfgSheet()
                  "Chạy từ mục số  (1 = từ đầu)", "Chạy đến mục số  (0 = đến hết)", _
                  "Tên dự án in ra  (trống = giữ như file nguồn)", "Tên công trình in ra  (trống = giữ như file nguồn)", _
                  "In cột Tổng cộng ở Giá tổng hợp", "Chỉ dò link, KHÔNG xuất PDF (xem trước)", _
-                 "Viết HOA dòng Tên dự án / công trình / hạng mục ở THKP", "Giá tháng: ẩn cột Mã số")
+                 "Viết HOA dòng Tên dự án / công trình / hạng mục ở THKP", "Giá tháng: ẩn cột Mã số", _
+                 "Sheet của file tổng cần dò link  (trống = tự chọn sheet nhiều link nhất)")
     For i = 0 To UBound(lbls)
         ws.Cells(4 + i, 2).Value = lbls(i)
         ws.Range(ws.Cells(4 + i, 3), ws.Cells(4 + i, 5)).Merge
@@ -176,7 +177,7 @@ Private Sub BuildTongCfgSheet()
             .Locked = False
         End With
     Next i
-    ws.Range("B4:B13").Font.Bold = True
+    ws.Range("B4:B14").Font.Bold = True
     ws.Range("C6").Value = 1
     ws.Range("C7").Value = 0
     ws.Range("C10").Value = "Không"
