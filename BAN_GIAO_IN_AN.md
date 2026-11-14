@@ -1,6 +1,6 @@
 # BÀN GIAO – TOOL IN ẤN DỰ TOÁN G8 (đọc file này đầu tiên)
 
-> Cập nhật: **12/11/2026** (phiên 12/11 – tên trên bản in, thứ tự + hướng từng mục file tổng, ô ###; **bỏ hẳn form VBA cũ**, file .xlsm chỉ còn là bộ máy; chi tiết NHAT_KY Lần 20–27). Mỗi lần bàn giao: ghi đè file này, giữ đúng tên.
+> Cập nhật: **15/11/2026** (phiên 12–15/11 – tên trên bản in, thứ tự + hướng từng mục file tổng, ô ###; **bỏ hẳn form VBA cũ**, file .xlsm chỉ còn là bộ máy; tick cha–con cây file tab 1; chi tiết NHAT_KY Lần 20–28). Mỗi lần bàn giao: ghi đè file này, giữ đúng tên.
 >
 > **Mở phiên mới:** đặt thư mục làm việc `C:\Users\DT-06\Documents\TOOL - RND7\In an du toan\In-an-G8`, gõ:
 > *"Đọc BAN_GIAO_IN_AN.md rồi làm tiếp"*.
@@ -14,7 +14,7 @@ Gốc dự án (gọi tắt **G8**): `C:\Users\DT-06\Documents\TOOL - RND7\In an
 | Mã nguồn VBA (sửa ở đây, KHÔNG sửa `gen\`) | `G8\src\` |
 | Phần mềm desktop V7.1 (C#) | `G8\app\InAnG8.cs` + `*Ui.cs`, build `G8\app\build_app.ps1` (mặc định ra gốc `G8\`, cạnh `FILE_TONG_IN_G8_V7.1.xlsm`) |
 | Bản build mới nhất | `G8\InAnG8.exe` + `G8\FILE_TONG_IN_G8_V7.1.xlsm` (có trong git; xlsm cũng là file khung khi build) |
-| Gói gửi người dùng | `G8\dist\In_an_du_toan_G8_V7.1_261112(.zip)`, cũng ở GitHub Releases `QuangHuyQS/In-an-du-toan-G8` (tag `v7.1-261112`). Chỉ phát hành gói phần mềm, **không còn gói form .bat V6.x** |
+| Gói gửi người dùng | `G8\dist\In_an_du_toan_G8_V7.1_261115(.zip)`, cũng ở GitHub Releases `QuangHuyQS/In-an-du-toan-G8` (tag `v7.1-261115`; bản trước `v7.1-261112` giữ lại). Chỉ phát hành gói phần mềm, **không còn gói form .bat V6.x** |
 | Form cũ + gói cũ (lưu trữ, không dùng) | `G8\_LUU_TRU_FORM_CU\` (gitignore): MO_FORM_IN_AN.bat/.vbs, xlsm V6.4–6.6, video HD cũ, dist V6.5–V7.1 cũ |
 | Thiết kế UI/UX (Antigravity – **bắt buộc**, Claude chỉ dựng theo) | `In an du toan\UI_PHAN_MEM_IN_G8\` – `BRIEF*.md` → `THIET_KE*.md`, `mockup*.html`, `XONG*.txt` (bản 1: tổng thể; 2: tab file tổng + luật TB; 3: tách vùng / co giãn) |
 | File thử | `In an du toan\Test\` (5 file: TXL 4 HM, 2. ĐM38 3 HM, 9. ĐM36 3 HM, 10. ĐM38 1 HM, 9.2b 1 HM) |

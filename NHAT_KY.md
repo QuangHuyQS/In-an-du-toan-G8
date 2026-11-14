@@ -261,3 +261,17 @@ Lan 18: Gia tong hop xuat TACH: moi HM dung o dong TONG HANG MUC (bo TONG CONG T
 - README, HUONG_DAN (viết lại cho phần mềm), DOC_TRUOC (bỏ "THỬ NGHIỆM", ghi form cũ ngừng dùng + link Releases).
 - Hồi quy 7 file Test: 238/238 trang, số trang giống; chỉ ĐGCT TXL lệch 3 pt như đã biết (nhiễu có sẵn, người dùng không cần sửa).
 - GitHub: gộp vào `main` của fork, bản phát hành v7.1-261112 bỏ gói V6.6, thay gói V7.1 mới.
+
+## Lần 28 – Video demo dự án OSI + sửa tick cha–con trên cây file tab 1 (15/11/2026)
+- Chép `M:\DUTOAN\2024\1. OSI\2. OUTPUT\03. TKTC\240117. TDT` về `In an du toan\Test_OSI\` (33 MB, 32 file), chỉ chạy trên bản chép.
+  Xuất thử 15 file → 22 PDF, 982 trang, 0 ô "###". `2401011 TH KC.xlsx` nhận "1 HM" nhưng không ra PDF (file tổng hợp, không có sheet dự toán chi tiết).
+  File tổng `231214. TDT.xlsm` / `2401011 TH KC.xlsx` link ra `240112 TH KC NGAM VA THAN` (ổ M) và ổ D → chưa demo tab file tổng.
+- Video `In an du toan\BAO_CAO_2026-11-15\demo_phan_mem_in_an_OSI.mp4` (2'33"): chụp riêng cửa sổ phần mềm bằng PrintWindow (máy đang có UltraViewer
+  HUY01 kết nối, khung UltraViewer + thông báo Zalo lọt vào bản quay cả màn hình). Kịch bản ở scratchpad (`rec8.ps1`, `cap_loop.ps1`).
+  BÀI HỌC quay: PS 5.1 đọc .ps1 không BOM là ANSI (chữ Việt hỏng) → ghi BOM; Unikey làm hỏng SendKeys chữ (Test_OSI → Tét_ÓI) → dán clipboard;
+  chữ WinForms lộ ra UIA là Pane chứ không phải Text; chờ theo file PDF xem trước thay vì giây cố định; biến PowerShell không phân biệt hoa thường ($H đè $h).
+- Lỗi phát hiện khi quay: tick HM không tick ô file (nút báo "0 file"), tick ô file không tick HM con.
+  Lõi (Claude): `OnTreeCheck` tick ô file nhiều HM = tick mọi HM; `SyncFileCheck(fi)` ô file bật khi còn ≥ 1 HM (gọi cả ở `ReadN`).
+  UI (Antigravity BRIEF_7 → XONG_7): ô "một phần" (CheckBoxRenderer MixedNormal), nhãn "1/2 HM", tooltip, bấm ô một phần = chọn đủ.
+  Claude sửa 3 lỗi biên dịch (ContentAlignment trùng tên khi thêm using VisualStyles; CheckBoxRenderer.IsSupported không có ở .NET 4 → Application.RenderWithVisualStyles).
+  Kiểm bằng chuột thật: bỏ HM2 → "1/2 HM" + vạch; bấm ô → đủ; bỏ ô file → 14 file; Bỏ hết → 0 file; Chọn hết → 15 file · 22 PDF.

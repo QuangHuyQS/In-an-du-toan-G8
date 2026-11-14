@@ -10,6 +10,10 @@ YÊU CẦU
   thư mục tool cũ thì xóa đi, chỉ dùng InAnG8.exe. File .xlsm mới không còn form / nút cũ.
 - Bản mới nhất: github.com/QuangHuyQS/In-an-du-toan-G8 ▸ Releases
 
+MỚI (cập nhật 15/11/2026)
+- Cây file tab 1: tick ô file nhiều HM = tick / bỏ tick mọi HM của file; tick từng HM thì ô file tự bật / tắt theo.
+  Chỉ chọn một số HM → ô file hiện vạch "một phần" và nhãn "1/2 HM"; bấm vào ô đó = chọn lại đủ HM.
+
 MỚI (cập nhật 12/11/2026)
 - Tên trên bản in: thanh "Tên trên bản in" (trên cùng, dùng cho cả 2 tab) đổi tên Dự án / Công trình cho
   mọi file; để trống = giữ tên trong file (ô trống hiện chữ xám "Đang in theo file: …"). Nút "n file lệch"

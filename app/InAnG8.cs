@@ -791,16 +791,38 @@ namespace InAnG8
             {
                 var fi = (FileItem)e.Node.Tag;
                 fi.Checked = e.Node.Checked;
+                // file nhieu HM: tick / bo tick file = tick / bo tick moi HM con
+                if (fi.Kind == 2)
+                {
+                    for (int h = 0; h < fi.HmOn.Count; h++) fi.HmOn[h] = fi.Checked;
+                    loadingUi = true;
+                    for (int h = 0; h < e.Node.Nodes.Count; h++) e.Node.Nodes[h].Checked = fi.Checked;
+                    loadingUi = false;
+                    if (curFile == fi) ShowOptions(fi);
+                    RefreshNode(fi);
+                }
             }
             else
             {
                 var fi = (FileItem)e.Node.Parent.Tag;
                 int h = (int)e.Node.Tag - 1;
                 fi.HmOn[h] = e.Node.Checked;
+                SyncFileCheck(fi);
                 if (curFile == fi) ShowOptions(fi);
                 RefreshNode(fi);
             }
             UpdateExportButton();
+        }
+
+        // File nhieu HM: o file bat khi con >= 1 HM duoc tick, tat khi khong con HM nao
+        void SyncFileCheck(FileItem fi)
+        {
+            if (fi == null || fi.Kind != 2 || fi.Node == null) return;
+            fi.Checked = fi.CheckedHm() > 0;
+            if (fi.Node.Checked != fi.Checked)
+            {
+                loadingUi = true; fi.Node.Checked = fi.Checked; loadingUi = false;
+            }
         }
 
         void OnTreeSelect()
@@ -864,6 +886,7 @@ namespace InAnG8
             loadingUi = true;
             for (int h = 0; h < curFile.Node.Nodes.Count; h++) curFile.Node.Nodes[h].Checked = curFile.HmOn[h];
             loadingUi = false;
+            SyncFileCheck(curFile);
             RefreshNode(curFile);
             MarkStale(curFile);
             // luat TB: nhac khi tick tay TB cho HM khong phai Lap dat / Thiet bi

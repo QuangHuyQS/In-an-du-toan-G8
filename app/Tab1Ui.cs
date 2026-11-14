@@ -182,8 +182,43 @@ namespace InAnG8
                 HideSelection = false, ItemHeight = 28, FullRowSelect = true, ShowLines = false, Indent = 18,
                 DrawMode = TreeViewDrawMode.OwnerDrawText
             };
+            try
+            {
+                typeof(Control).GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(tree, true, null);
+            }
+            catch { }
             tree.AfterSelect += delegate(object s, TreeViewEventArgs e) { OnTreeSelect(); };
+            tree.BeforeCheck += delegate(object s, TreeViewCancelEventArgs e)
+            {
+                if (loadingUi) return;
+                // Bam vao o "mot phan" -> hanh vi nhu tick o file (tick du moi HM con)
+                if (e.Action != TreeViewAction.Unknown && e.Node.Parent == null)
+                {
+                    var fi = e.Node.Tag as FileItem;
+                    if (fi != null && fi.Kind == 2 && fi.HmOn != null && fi.HmOn.Count > 1
+                        && fi.CheckedHm() > 0 && fi.CheckedHm() < fi.HmOn.Count)
+                    {
+                        e.Cancel = true;
+                        for (int h = 0; h < fi.HmOn.Count; h++) fi.HmOn[h] = true;
+                        loadingUi = true;
+                        for (int h = 0; h < e.Node.Nodes.Count; h++) e.Node.Nodes[h].Checked = true;
+                        e.Node.Checked = true;
+                        fi.Checked = true;
+                        loadingUi = false;
+                        if (curFile == fi) ShowOptions(fi);
+                        RefreshNode(fi);
+                        UpdateExportButton();
+                        tree.Invalidate();
+                    }
+                }
+            };
             tree.AfterCheck += OnTreeCheck;
+            tree.AfterCheck += delegate(object s, TreeViewEventArgs e)
+            {
+                if (loadingUi) return;
+                tree.Invalidate();
+            };
             tree.DrawNode += Tree_DrawNode;
 
             spL.Panel1.Controls.Add(tree);
@@ -355,7 +390,7 @@ namespace InAnG8
             {
                 if (loadingUi || e.RowIndex < 0) return;
                 if (e.ColumnIndex == 2) OnGridNHmNameChanged(e.RowIndex);
-                else ReadN();
+                else { ReadN(); if (tree != null) tree.Invalidate(); }
             };
             gridN.CellEndEdit += delegate(object s, DataGridViewCellEventArgs e)
             {
@@ -619,6 +654,7 @@ namespace InAnG8
             if (curFile != null) ShowOptions(curFile);
             foreach (var fi in files) RefreshNode(fi);
             UpdateExportButton();
+            if (tree != null) tree.Invalidate();
         }
 
         // Custom Paint cho cay file Tab 1 (LOI_4 muc 1: cach deu checkbox 5px, nen chon phu tron hang, khong bi cat chu)
@@ -648,14 +684,73 @@ namespace InAnG8
                 Color textCol = (fi != null && fi.Kind == 0) ? C.Muted : (!e.Node.Checked ? C.Muted : C.Text);
                 Font f = fBold;
 
+                bool isPartial = fi != null && fi.Kind == 2 && fi.HmOn != null && fi.HmOn.Count > 1
+                    && fi.CheckedHm() > 0 && fi.CheckedHm() < fi.HmOn.Count;
+
+                if (isPartial)
+                {
+                    Size sz = Size.Empty;
+                    if (Application.RenderWithVisualStyles)
+                    {
+                        try { sz = CheckBoxRenderer.GetGlyphSize(g, System.Windows.Forms.VisualStyles.CheckBoxState.MixedNormal); } catch { }
+                    }
+                    if (sz.Width <= 0 || sz.Height <= 0) sz = new Size(13, 13);
+
+                    int slotLeft = tree.Indent;
+                    int slotRight = e.Bounds.Left;
+                    int boxX = (slotRight > slotLeft + sz.Width)
+                        ? slotLeft + (slotRight - slotLeft - sz.Width) / 2
+                        : Math.Max(slotLeft, e.Bounds.Left - 3 - sz.Width);
+                    int boxY = e.Bounds.Top + Math.Max(0, (e.Bounds.Height - sz.Height) / 2);
+
+                    Region oldClip = g.Clip;
+                    try
+                    {
+                        g.SetClip(new Rectangle(0, e.Bounds.Top, tree.ClientSize.Width, e.Bounds.Height));
+                        using (var br = new SolidBrush(tree.BackColor))
+                            g.FillRectangle(br, boxX - 1, boxY - 1, sz.Width + 2, sz.Height + 2);
+                        if (Application.RenderWithVisualStyles)
+                            CheckBoxRenderer.DrawCheckBox(g, new Point(boxX, boxY), System.Windows.Forms.VisualStyles.CheckBoxState.MixedNormal);
+                        else
+                            ControlPaint.DrawCheckBox(g, new Rectangle(boxX, boxY, sz.Width, sz.Height), ButtonState.Checked | ButtonState.Inactive);
+                    }
+                    finally
+                    {
+                        g.Clip = oldClip;
+                        oldClip.Dispose();
+                    }
+                }
+
                 // Tinh kich thuoc cac badge phan loai, doi ten va da xem de danh cho
-                string bdgTxt = fi != null ? (fi.Kind == 2 ? fi.HmNames.Length + " HM" : fi.Kind == 1 ? "1 HM" : fi.Kind == 0 ? "BỎ QUA" : "đang đọc…") : "";
+                string bdgTxt = "";
+                if (fi != null)
+                {
+                    if (fi.Kind == 2)
+                    {
+                        bdgTxt = isPartial
+                            ? (fi.CheckedHm() + "/" + fi.HmNames.Length + " HM")
+                            : (fi.HmNames.Length + " HM");
+                    }
+                    else if (fi.Kind == 1) bdgTxt = "1 HM";
+                    else if (fi.Kind == 0) bdgTxt = "BỎ QUA";
+                    else bdgTxt = "đang đọc…";
+                }
                 int bdgW = 0;
                 Size szBdg = Size.Empty;
                 if (bdgTxt.Length > 0)
                 {
                     szBdg = TextRenderer.MeasureText(g, bdgTxt, fChip, Size.Empty, TextFormatFlags.NoPadding);
                     bdgW = szBdg.Width + 8;
+                }
+
+                if (isPartial)
+                {
+                    string statusSuffix = string.IsNullOrEmpty(fi.Status) ? "" : (" · " + fi.Status);
+                    e.Node.ToolTipText = fi.Path + "\nĐang chọn " + fi.CheckedHm() + " trên " + fi.HmNames.Length + " hạng mục" + statusSuffix;
+                }
+                else if (fi != null && fi.Kind == 2)
+                {
+                    e.Node.ToolTipText = fi.Path + (string.IsNullOrEmpty(fi.Status) ? "" : ("\n" + fi.Status));
                 }
 
                 bool hm1Ren = fi != null && fi.Kind == 1 && IsHmRenamed(fi, 0);
