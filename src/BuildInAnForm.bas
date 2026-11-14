@@ -127,6 +127,70 @@ Public Sub BuildInAnForm_Sheet()
 End Sub
 
 ' ============================================================================
+'  BuildInAnForm_Engine (V7.1+, BUILD_V6.ps1 -EngineOnly): file xlsm chi con la
+'  BO MAY cho phan mem InAnG8.exe. Bo form frmInDuToan + clsInAnBtn, xoa nut
+'  tren 2 sheet, sheet 1 chi con dong huong dan mo bang InAnG8.exe.
+'  Sheet "IN THEO FILE TONG" giu nguyen gia tri (engine doc C12/C13) nhung an han.
+' ============================================================================
+Public Sub BuildInAnForm_Engine()
+    Dim vbp As Object: Set vbp = ThisWorkbook.VBProject
+    RemoveComp vbp, "frmInDuToan"
+    RemoveComp vbp, "clsInAnBtn"
+
+    Dim ws As Worksheet, i As Long
+    For Each ws In ThisWorkbook.Worksheets
+        For i = ws.Shapes.Count To 1 Step -1
+            ws.Shapes(i).Delete
+        Next i
+    Next ws
+
+    Dim wsT As Worksheet
+    On Error Resume Next
+    Set wsT = ThisWorkbook.Worksheets("IN THEO FILE TONG")
+    On Error GoTo 0
+
+    Set ws = ThisWorkbook.Worksheets(1)
+    If Not wsT Is Nothing Then
+        If wsT Is ws Then Set ws = Nothing
+    End If
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add(Before:=ThisWorkbook.Worksheets(1))
+    End If
+    ws.Cells.UnMerge
+    ws.Cells.Clear
+    ws.Cells.Interior.Color = RGB(255, 255, 255)
+    ws.Cells.Font.Name = "Segoe UI"
+    ws.Cells.Font.Size = 11
+    ws.Cells.RowHeight = 18
+    ws.Columns.ColumnWidth = 8.43
+    ws.Columns("A").ColumnWidth = 3
+    ws.Columns("B").ColumnWidth = 110
+    On Error Resume Next
+    ws.Name = "PHAN MEM IN AN G8"
+    On Error GoTo 0
+
+    ws.Range("B2").Value = "BỘ MÁY IN ẤN DỰ TOÁN G8 – dùng cho phần mềm InAnG8.exe"
+    ws.Range("B2").Font.Size = 16
+    ws.Range("B2").Font.Bold = True
+    ws.Range("B4").Value = "File này KHÔNG mở để dùng trực tiếp. Hãy mở phần mềm:  InAnG8.exe  (để cùng thư mục với file này)."
+    ws.Range("B4").Font.Bold = True
+    ws.Range("B4").Font.Color = RGB(192, 0, 0)
+    ws.Range("B6").Value = "Phần mềm tự mở file này ở chế độ chạy ngầm (chỉ đọc) để xuất PDF, rồi tự đóng."
+    ws.Range("B7").Value = "Đừng đổi tên, đừng sửa, đừng xóa file này; giữ chung thư mục với InAnG8.exe."
+    ws.Range("B8").Value = "Form cũ (nền xanh, nút cam, mở bằng MO_FORM_IN_AN.bat) đã ngừng dùng từ bản 7.1."
+    ws.Range("B10").Value = "Tải bản mới nhất: github.com/QuangHuyQS/In-an-du-toan-G8  ▸  mục Releases"
+    ws.Range("B10").Font.Color = RGB(89, 89, 89)
+    ws.Range("B4:B10").WrapText = True
+
+    If Not wsT Is Nothing Then wsT.Visible = 2           ' xlSheetVeryHidden: engine van doc duoc
+    On Error Resume Next
+    ws.Activate
+    ws.Range("A1").Select
+    ActiveWindow.DisplayGridlines = False
+    On Error GoTo 0
+End Sub
+
+' ============================================================================
 '  Sheet cau hinh "IN THEO FILE TONG" (V6.5)
 '  Doc boi modInAnMain.XuatTong_BatDau - giu nguyen dia chi o (TONG_CFG_*).
 ' ============================================================================

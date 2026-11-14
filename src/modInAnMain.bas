@@ -47,7 +47,7 @@ Public Sub MoBangDieuKhien()
     Set gFrm = VBA.UserForms.Add("frmInDuToan")   ' late bind: module van bien dich khi chua co form
     On Error GoTo 0
     If gFrm Is Nothing Then
-        MsgBoxU "Thiếu form frmInDuToan trong file này. Chạy lại BUILD_V6.ps1.", vbExclamation
+        MsgBoxU "Form cũ (nền xanh, nút cam) đã ngừng dùng từ bản 7.1." & vbCrLf & "Hãy mở phần mềm InAnG8.exe (cùng thư mục với file này).", vbInformation
         Exit Sub
     End If
     gFrm.Show vbModeless

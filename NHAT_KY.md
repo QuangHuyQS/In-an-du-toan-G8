@@ -248,3 +248,16 @@ Lan 18: Gia tong hop xuat TACH: moi HM dung o dong TONG HANG MUC (bo TONG CONG T
   → tên PDF có "?" → lỗi 1004 "Document not saved" ở file có HM Lắp đặt / Xây dựng. Đã khôi phục từ git HEAD.
 - Hồi quy: 238 trang, nội dung giống; riêng bảng ĐGCT file TXL đôi khi lệch ngang 3 pt GIỮA 2 LẦN CHẠY CÙNG BẢN (nhiễu có sẵn, không do sửa lần này).
 - Đã chép exe + xlsm vào app\bin. Chưa đóng gói dist, chưa commit.
+
+## Lần 27 – Bỏ hẳn form VBA cũ, đưa phần mềm ra ngoài (12/11/2026)
+- Người dùng: form cũ (nền xanh, nút cam, MO_FORM_IN_AN.bat) là tool cũ, phải trình bản mới ra.
+- Lõi: `BuildInAnForm_Engine` (src\BuildInAnForm.bas) bỏ `frmInDuToan` + `clsInAnBtn`, xoá mọi nút trên sheet; sheet 1 đổi tên
+  "PHAN MEM IN AN G8", chỉ ghi "mở bằng InAnG8.exe"; sheet `IN THEO FILE TONG` VeryHidden (giữ giá trị, lõi còn đọc C12/C13).
+  `MoBangDieuKhien` chỉ báo "form cũ đã ngừng dùng". Xoá src\frmInDuToan_code.txt, src\clsInAnBtn.cls; _gen.py/_gen.ps1 bỏ 2 file đó.
+- BUILD_V6.ps1 viết lại: chỉ còn chế độ bộ máy, khung mặc định = FILE_TONG_IN_G8_V7.1.xlsm cạnh script, `-Out` bắt buộc và phải khác khung.
+  Build lại từ chính bản bộ máy ra kết quả y hệt (đã so nội dung 2 sheet). build_app.ps1 mặc định ra gốc G8\ (bỏ app\bin).
+- Thư mục: InAnG8.exe + FILE_TONG_IN_G8_V7.1.xlsm nằm ở gốc (có trong git). MO_FORM_IN_AN.bat/.vbs, xlsm V6.4/6.5/6.6, video HD cũ,
+  gói dist V6.5–V7.1 cũ, xlsm V7.1 còn form → `_LUU_TRU_FORM_CU\` (gitignore, không xoá hẳn).
+- README, HUONG_DAN (viết lại cho phần mềm), DOC_TRUOC (bỏ "THỬ NGHIỆM", ghi form cũ ngừng dùng + link Releases).
+- Hồi quy 7 file Test: 238/238 trang, số trang giống; chỉ ĐGCT TXL lệch 3 pt như đã biết (nhiễu có sẵn, người dùng không cần sửa).
+- GitHub: gộp vào `main` của fork, bản phát hành v7.1-261112 bỏ gói V6.6, thay gói V7.1 mới.

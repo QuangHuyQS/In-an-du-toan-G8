@@ -1,6 +1,7 @@
 # Bien dich InAnG8.exe bang csc.exe cua .NET Framework 4 (co san trong Windows) - khong can cai SDK.
 #   powershell -ExecutionPolicy Bypass -File build_app.ps1 [-Out <thu muc>]
-param([string]$Out = (Join-Path $PSScriptRoot 'bin'))
+param([string]$Out = '')   # mac dinh: goc repo, canh FILE_TONG_IN_G8_V7.1.xlsm
+if (-not $Out) { $Out = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path) }
 $ErrorActionPreference = 'Stop'
 $F = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
 $W = Join-Path $env:WINDIR 'System32\WinMetadata'

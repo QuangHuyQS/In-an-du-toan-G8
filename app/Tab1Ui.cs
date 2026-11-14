@@ -60,7 +60,7 @@ namespace InAnG8
             // header
             var head = new Panel { Dock = DockStyle.Top, Height = 46, BackColor = C.Dark };
             var lblApp = new Label { Text = "G8   PHẦN MỀM IN ẤN DỰ TOÁN G8", ForeColor = Color.White, Font = new Font("Segoe UI Semibold", 13f), AutoSize = true, Location = new Point(14, 11) };
-            var lblVer = new Label { Text = "bản 7.1 – thử nghiệm", ForeColor = ColorTranslator.FromHtml("#9FB3CF"), Font = fSmall, AutoSize = true, Location = new Point(330, 17) };
+            var lblVer = new Label { Text = "bản 7.1", ForeColor = ColorTranslator.FromHtml("#9FB3CF"), Font = fSmall, AutoSize = true, Location = new Point(330, 17) };
             head.Controls.Add(lblApp); head.Controls.Add(lblVer);
             head.Layout += delegate(object s, LayoutEventArgs e)
             {

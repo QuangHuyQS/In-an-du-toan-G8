@@ -53,5 +53,3 @@ def gen(name, outname=None, cls=None):
 gen('inanDTG8_V6.bas')
 gen('modInAnMain.bas')
 gen('BuildInAnForm.bas')
-gen('frmInDuToan_code.txt')
-gen('clsInAnBtn.cls', cls='clsInAnBtn')

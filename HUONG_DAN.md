@@ -1,14 +1,25 @@
-# Hướng dẫn sử dụng – Xuất PDF theo FILE TỔNG HỢP (V6.5)
+# Hướng dẫn sử dụng – Phần mềm In ấn dự toán G8 (bản 7.1)
 
-> **Mở nhanh form in:** bấm đúp `MO_FORM_IN_AN.bat` (để cùng thư mục với `FILE_TONG_IN_G8_V*.xlsm`).
-> **Thứ tự hạng mục:** file nhiều HM, gõ số ở ô đầu mỗi dòng hạng mục (1, 2, 3…) để chọn HM nào in là HM1, HM2.
+> Mở bằng **`InAnG8.exe`** (để chung thư mục với `FILE_TONG_IN_G8_V7.1.xlsm`). Không cần mở file .xlsm.
+> Form cũ (nền xanh, nút cam, `MO_FORM_IN_AN.bat`) đã ngừng dùng từ bản 7.1.
+> Thao tác từng tab, bố cục, phím tắt: xem [DOC_TRUOC.txt](DOC_TRUOC.txt). File này nói **cách phần mềm in**.
 
-Tool đọc file tổng hợp (ví dụ `0. TH LUONG TAI.xlsx`), đi theo các công thức link
+## 1. Hai cách in
+- **Tab "Danh sách file dự toán"**: kéo thả file / thư mục dự toán G8. Phần mềm tự nhận file 1 hạng mục
+  hay nhiều hạng mục, xem trước đúng như sẽ in, chọn sheet + thứ tự cho từng file / từng hạng mục.
+- **Tab "In theo file tổng hợp"**: chọn file tổng, quét link, mỗi mục chọn sheet, thứ tự sheet, hướng
+  dọc / ngang; xuất mỗi mục 1 PDF đúng thứ tự file tổng.
+
+Chuẩn bị: các file dự toán chi tiết phải còn đúng đường dẫn mà file tổng đang link (ổ M:, W:…).
+Phần mềm mở mọi file **chỉ đọc**, dùng Excel chạy ngầm riêng, không đụng Excel bạn đang làm.
+
+## 2. In theo file tổng hợp: phần mềm đi theo link thế nào
+Ở tab **In theo file tổng hợp**, phần mềm đọc file tổng hợp (ví dụ `0. TH LUONG TAI.xlsx`), đi theo các công thức link
 tới từng file dự toán chi tiết, rồi xuất mỗi hạng mục thành 1 file PDF, đúng thứ tự trong file tổng.
 
-### Link nhiều cấp (từ V6.5)
-Tool đi theo link qua bao nhiêu file trung gian cũng được (tối đa 6 cấp):
-- Ô trong file trung gian là `SUBTOTAL(...)` / `SUM(...)` / `=E11+E12` → tool đi xuống từng ô con
+### Link nhiều cấp
+Phần mềm đi theo link qua bao nhiêu file trung gian cũng được (tối đa 6 cấp):
+- Ô trong file trung gian là `SUBTOTAL(...)` / `SUM(...)` / `=E11+E12` → phần mềm đi xuống từng ô con
   (với `SUBTOTAL` bỏ qua ô con cũng là SUBTOTAL, đúng như Excel tính) và theo từng link ra file khác.
 - Link vào `THKP hạng mục` → in dự toán của đúng hạng mục đó.
 - Link vào `TH chi phí TB` của file dự toán → chỉ in sheet TH chi phí TB.
@@ -29,61 +40,25 @@ PDF\
 ```
 File nguồn nằm ngoài thư mục file tổng → `_NGOAI THU MUC TONG\`.
 
-## 1. Chuẩn bị
-- Máy có Excel. Mở file `FILE_TONG_IN_G8_V6.5.xlsm`, bấm **Enable Content** (cho phép macro).
-- Các file dự toán chi tiết phải còn ở đúng đường dẫn mà file tổng đang link (ổ M:, W:…).
-- Đóng các file Excel khác đang mở cùng tên, để tool mở được file ở chế độ chỉ đọc.
-
-## 2. Cách chạy bằng nút trên sheet
-1. Trên sheet đầu của file `.xlsm`, bấm nút xanh **▶ XUẤT PDF THEO FILE TỔNG HỢP** → chọn file tổng hợp.
-2. Tool chuyển sang sheet **IN THEO FILE TONG** (cấu hình, được nhớ cho lần sau):
-   | Ô | Ý nghĩa |
-   |---|---|
-   | File tổng hợp | đổi bằng nút *Chọn file tổng hợp…* |
-   | Thư mục lưu PDF | trống = thư mục `PDF` cạnh file tổng |
-   | Chạy từ / đến mục số | chạy tiếp khi bị ngắt, hoặc chạy một đoạn |
-   | Tên dự án in ra | thay dòng `Tên dự án:` ở THKP (mọi khối hạng mục). Trống = giữ như file nguồn |
-   | Tên công trình in ra | thay `Tên công trình:` / `CÔNG TRÌNH :` ở mọi sheet. Trống = giữ |
-   | In cột Tổng cộng | cột Tổng cộng ở Giá tổng hợp |
-   | Chỉ dò link | không xuất PDF, chỉ ghi `_THU_TU_XUAT.txt` để xem trước |
-   | Viết HOA dòng tên ở THKP | `TÊN DỰ ÁN: … / TÊN CÔNG TRÌNH: … / TÊN HẠNG MỤC: …` (mặc định Có) |
-   | Giá tháng: ẩn cột Mã số | mặc định Có (cột tìm theo tiêu đề "Mã số") |
-3. Bảng chọn sheet: mỗi sheet có 2 ô **thứ tự in** — cột *File 1 hạng mục* và cột *File 2, 3… hạng mục*.
-   Để trống = không in; số nhỏ in trước. Mặc định: TH chi phí TB (1), THKP (2), Giá tổng hợp (3),
-   Đơn giá chi tiết (4), Giá tháng (5).
-   - File 1 hạng mục: cả file 1 PDF, chọn được thêm Công trình, Tổng hợp VT, TH chi phí XD.
-   - File nhiều hạng mục: mỗi hạng mục 1 PDF; THKP / Giá tổng hợp / Đơn giá CT / Công trình được tách
-     đúng phần của hạng mục đó; Giá tháng in kèm mọi hạng mục; TH chi phí TB đi kèm hạng mục đầu.
-   - TH chi phí TB chỉ in khi tổng thiết bị khác 0.
-4. Bấm **▶ BẮT ĐẦU XUẤT**. Xong, tool báo số PDF và mở thư mục kết quả.
-
+## 3. Luật chung khi in
 Ô có giá trị 0 **luôn in ra để trống** (tắt "Show a zero in cells that have zero value" trên mọi sheet trước
-khi xuất) — áp dụng cho cả in theo file tổng lẫn in từng file trên form.
+khi xuất) — áp dụng cho cả 2 tab.
 
 Dòng **"Bằng chữ: …"** (số tiền đọc thành chữ, gõ tay nên dễ sai khi số liệu đổi) được **ẩn trên mọi sheet**
-trước khi xuất. `API_SetGiuBangChu True` để giữ.
+trước khi xuất.
 
 Tên dự án / công trình chỉ thay trên bản in — file nguồn mở chỉ đọc, **không bị lưu đè**.
 
-## 3. Mỗi PDF gồm những gì (theo thứ tự trang)
-TH chi phí TB (chỉ ở hạng mục đầu của file) → THKP hạng mục → Giá tổng hợp → Đơn giá chi tiết → Giá tháng.
+- **TH chi phí TB** chỉ mặc định in kèm hạng mục có tên chứa "Lắp đặt" hoặc "Thiết bị", và chỉ khi tổng
+  thiết bị khác 0. Tick tay thêm được (có cảnh báo).
+- Số nguyên không hiện dấu phẩy thừa. Ô số dài hơn cột (`###`): cột nới có giới hạn, số quá dài thì thu
+  nhỏ chữ riêng ô đó; mỗi chỗ xử lý ghi vào Nhật ký và báo cáo xuất.
+
+## 4. Mỗi PDF gồm những gì (thứ tự mặc định, đổi được trên phần mềm)
+TH chi phí TB (theo luật ở mục 3) → THKP hạng mục → Giá tổng hợp → Đơn giá chi tiết → Giá tháng.
 - File có nhiều hạng mục: Giá tổng hợp và Đơn giá chi tiết được **tách theo từng hạng mục** đã tách ở THKP; Giá tháng đi kèm mỗi hạng mục.
 - Sheet Giá tháng bị ẩn trong file nguồn sẽ được tự hiện lại để in.
 - Tên file: `NN_<STT> <tên hạng mục>.pdf` hoặc `NN.kk_<STT> <tên mục con>.pdf` (NN = số thứ tự trong file tổng).
-
-## 4. Chạy không có Đơn giá chi tiết, hoặc chỉ một thư mục (dùng lệnh)
-Các tuỳ chọn này hiện chưa có nút, chạy qua COM/PowerShell hoặc trong VBE (Immediate window):
-
-```vb
-API_SetTongFilter "\1. DHKK\"     ' chỉ xuất mục có file nguồn nằm trong thư mục này ("" = tất cả)
-API_SetTongNoDGCT True            ' True = KHÔNG xuất Đơn giá chi tiết
-API_SetTongDryRun True            ' True = chỉ dò link + ghi _THU_TU_XUAT.txt, KHÔNG xuất PDF (xem trước, ~30 giây)
-API_SetTongTen "TÊN DỰ ÁN MỚI", ""  ' tên dự án / tên công trình in ra ("" = giữ nguyên)
-API_SetTongSheets "8,1,2,3,5", "6,1,2,3,5"  ' sheet + thứ tự: file 1 HM (1 THKP,2 GTH,3 DGCT,4 CT,5 GT,6 THVT,7 THXD,8 TB) / nhiều HM (1..5 như trên, 6 TB)
-Dim rep As String
-n = API_RunTong("M:\...\0.KSDT DD D.TOAN T.HOP 26.01.2022.xlsx", "M:\...\PDF\KHONG_DGCT", False, rep)
-```
-Tham số thứ 3 của `API_RunTong`: `True` = in cột Tổng cộng, `False` = không in.
 
 ## 5. Đọc kết quả
 - Mỗi lần chạy ghi `_THU_TU_XUAT.txt` trong thư mục đích, dạng cây: mục file tổng → các mục con →
@@ -94,12 +69,6 @@ Tham số thứ 3 của `API_RunTong`: `True` = in cột Tổng cộng, `False` 
 
 ## 6. Xử lý sự cố
 - **Không mở được file:** kiểm tra ổ mạng M:/W: còn kết nối, file nguồn không bị khoá.
-- **Dừng giữa chừng:** chạy lại và nhập số mục bắt đầu ở bước 4.
-- **Còn tiến trình Excel nền:** đóng bằng Task Manager nếu file báo "đang được dùng".
-- Lần chạy đầy đủ có Đơn giá chi tiết mất khoảng 45 phút; bỏ Đơn giá chi tiết còn khoảng 25 phút.
-
-## 7. Build lại tool từ mã nguồn
-```powershell
-.\BUILD_V6.ps1 -KeepForm -Template .\FILE_TONG_IN_G8_V6.4.xlsm -Out "$PWD\FILE_TONG_IN_G8_V6.5.xlsm"
-```
-Cần Excel bật "Trust access to the VBA project object model". Mã nguồn ở `src\`, thư mục `gen\` tự sinh.
+- **Dừng giữa chừng:** chạy lại, chỉ tick các mục chưa xuất.
+- **Lỗi / cảnh báo:** xem ở Nhật ký (góc dưới phải, Ctrl+L) và file `BAO_CAO_XUAT_*.txt` trong thư mục PDF.
+- File tổng nhiều mục chạy lâu (nhiều chục phút): bỏ tick Đơn giá chi tiết để nhanh hơn.

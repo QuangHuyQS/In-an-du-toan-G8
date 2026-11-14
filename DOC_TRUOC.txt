@@ -1,34 +1,68 @@
-﻿TOOL IN ẤN DỰ TOÁN G8 – V6.5
-==============================
+﻿PHẦN MỀM IN ẤN DỰ TOÁN G8 – BẢN 7.1
+===================================
 
 YÊU CẦU
-- Windows 10/11, Microsoft Excel 2010 trở lên (32 hoặc 64 bit, khuyên dùng Office 365 / 2016+).
-- Không cần cài thêm gì, không cần mạng.
+- Windows 10/11 có Microsoft Excel (2010 trở lên). Không cần cài thêm gì, không cần mạng.
+- Giữ 2 file này chung một thư mục:
+    InAnG8.exe                  (phần mềm – bấm đúp để mở)
+    FILE_TONG_IN_G8_V7.1.xlsm   (lõi in – phần mềm tự dùng, KHÔNG cần mở)
+- Form cũ (nền xanh, nút cam, mở bằng MO_FORM_IN_AN.bat – bản V6.x) đã NGỪNG DÙNG. Nếu máy còn
+  thư mục tool cũ thì xóa đi, chỉ dùng InAnG8.exe. File .xlsm mới không còn form / nút cũ.
+- Bản mới nhất: github.com/QuangHuyQS/In-an-du-toan-G8 ▸ Releases
 
-VIDEO HƯỚNG DẪN (thư mục 'Video huong dan')
-- HD1_In_theo_file.mp4   : in từng file, file nhiều hạng mục, đổi thứ tự HM1/HM2
-- HD2_In_ca_thu_muc.mp4  : xuất PDF hàng loạt cả thư mục
+MỚI (cập nhật 12/11/2026)
+- Tên trên bản in: thanh "Tên trên bản in" (trên cùng, dùng cho cả 2 tab) đổi tên Dự án / Công trình cho
+  mọi file; để trống = giữ tên trong file (ô trống hiện chữ xám "Đang in theo file: …"). Nút "n file lệch"
+  mở bảng tên khác nhau giữa các file. Tab 1, vùng phải: "Tên trên bản in (file này)" ghi đè riêng 1 file;
+  sửa trực tiếp tên hạng mục trên lưới (chuột phải = về tên gốc). Đổi tên không đổi luật in TB.
+- Tab "In theo file tổng hợp": mỗi mục chọn được THỨ TỰ sheet (▲ ▼) và hướng in DỌC / NGANG từng sheet
+  (khác mặc định thì nút tô vàng, cây hiện ví dụ "THKP·D"). "Áp sheet + thứ tự + hướng cho mọi mục".
+- Số nguyên không còn hiện dấu phẩy thừa ("1," → "1").
+- Ô số dài hơn cột (###): cột nới có giới hạn, số quá dài thì thu nhỏ chữ RIÊNG ô đó (không làm nhỏ cả
+  trang); mỗi chỗ xử lý ghi vào Nhật ký và báo cáo xuất.
+- Xem trước nhanh hơn (chỉ tạo hạng mục đang xem, tạo sẵn hạng mục kế tiếp); xuất PDF nhanh gần gấp đôi.
+- Kéo được độ rộng cột lưới hạng mục, thanh chia các vùng, kích thước hộp thoại; phần mềm nhớ cho lần sau
+  ("⟲ Đặt lại bố cục" = về mặc định).
 
-CÁCH DÙNG
-1. Giải nén cả thư mục ra một chỗ bất kỳ (Desktop, ổ D...). KHÔNG chạy trực tiếp bên trong file zip.
-   Giữ 3 file này chung một thư mục:
-     FILE_TONG_IN_G8_V6.5.xlsm   (tool)
-     MO_FORM_IN_AN.bat           (bấm đúp để mở form in)
-     MO_FORM_IN_AN.vbs           (file phụ của .bat)
-2. Mở các file dự toán G8 cần in trong Excel (hoặc chọn thư mục ngay trên form).
-3. Bấm đúp MO_FORM_IN_AN.bat → hiện form "In ấn dự toán".
-   - Form dùng chính Excel đang mở nên thấy các file dự toán đang mở.
-   - Đóng form thì file tool tự đóng.
-   Cách khác: mở trực tiếp FILE_TONG_IN_G8_V6.5.xlsm, bấm "Bật nội dung / Enable Content",
-   rồi bấm nút "Mở form in ấn dự toán".
+MỚI Ở BẢN 7.1
+- TH chi phí TB chỉ in kèm hạng mục có tên chứa "Lắp đặt" hoặc "Thiết bị" (không phân biệt hoa
+  thường / dấu). Hạng mục Xây dựng, Thu hồi… mặc định không in TB; vẫn tự tick thêm được (có cảnh báo).
+- Tab "In theo file tổng hợp" làm lại: cây cha–con có cột, xem trước đúng bản PDF của từng mục,
+  tick chọn mục / chọn sheet từng mục.
+- Tách vùng ra cửa sổ riêng (kéo sang màn hình 2), thu gọn vùng, cửa sổ hẹp tự co giãn, nhớ bố cục.
+- Excel nền gắn chặt với phần mềm: đóng / văng / tắt phần mềm trong Task Manager thì Excel nền
+  cũng tắt theo, không còn EXCEL.EXE chạy ngầm.
 
-FILE NHIỀU HẠNG MỤC
-- Mỗi dòng hạng mục có ô số ở đầu (1, 2, 3...). Gõ lại số để chọn HM nào in là HM1, HM2:
-  tên PDF "..._HM1 Xây dựng.pdf", "..._HM2 Lắp đặt.pdf" và thứ tự khi ghép 1 file theo số này.
+TAB "DANH SÁCH FILE DỰ TOÁN"
+1. Thêm file: kéo thả file / thư mục vào cửa sổ, hoặc "+ Thêm file…" / "+ Thư mục…".
+2. Cây bên trái: [1 HM] / [n HM] / [BỎ QUA]. Bỏ tick file / HM = không in.
+3. Bấm vào file hoặc HM → xem trước đúng như sẽ in (lần đầu 5–30 giây / file).
+4. Bên phải chỉnh sheet: file 1 HM tick + ▲ ▼; file nhiều HM lưới HM × sheet. Ô TB tô xanh + dấu ●
+   = hạng mục Lắp đặt / Thiết bị (đạt luật in TB). Đổi xong bấm "⟳ Cập nhật xem trước".
+5. Dưới cùng: thư mục lưu, kiểu xuất, nút cam "XUẤT PDF".
 
-NẾU KHÔNG CHẠY ĐƯỢC
-- Excel báo "Microsoft đã chặn macro" / thanh đỏ SECURITY RISK:
-  đóng Excel, chuột phải FILE_TONG_IN_G8_V6.5.xlsm → Properties → tick "Unblock" → OK.
-  (MO_FORM_IN_AN.bat đã tự làm việc này; chỉ cần làm tay khi máy chặn PowerShell.)
-- Bấm .bat không thấy gì: máy đã tắt VBScript (một số máy công ty). Dùng cách mở trực tiếp file .xlsm ở bước 3.
-- Mọi lựa chọn trên form được nhớ riêng trên từng máy, không ảnh hưởng máy khác.
+TAB "IN THEO FILE TỔNG HỢP"
+1. "Chọn file…" file tổng (bảng THC…), sheet tự gợi ý → "🔍 Quét link" (~17 giây với 34 link),
+   sau đó phần mềm đọc từng file nguồn để biết mục thuộc hạng mục nào.
+2. Cây bên trái: dòng cha (I, 1, 1.1 + giá trị) và từng mục link. Ô ☑ đầu dòng = có xuất
+   (tick dòng cha = cả nhóm, phím cách cũng được). ▸ / ▾ hoặc bấm đúp dòng cha để gập / mở.
+   Cột: Giá trị, File nguồn, HM link (1 HM / HM k/n / Cả file / Sheet TB), Sheet in, Trạng thái.
+   Đỏ "Mất link" = dòng không có file nguồn. Kéo mép tiêu đề cột để chỉnh độ rộng.
+3. Bấm một mục → giữa hiện PDF thật sẽ xuất cho mục đó (10–20 giây). Mục "Cả file" ra nhiều PDF
+   → chọn PDF ở ô phía trên khung xem trước.
+4. Bên phải: tick sheet cho mục đang chọn; "Áp dụng cấu hình cho mọi mục" / "Về mặc định ban đầu";
+   đổi xong bấm "⟳ Cập nhật xem trước".
+5. "XUẤT THEO FILE TỔNG (n mục)" → chỉ xuất mục đang tick. Xong hiện hộp báo cáo kết quả
+   (mở lại bằng "📄 Báo cáo kết quả"); báo cáo cũng lưu file BAO_CAO_XUAT_*.txt trong thư mục PDF.
+
+BỐ CỤC (cả 2 tab)
+- ⧉ trên tiêu đề vùng: tách vùng ra cửa sổ riêng (kéo sang màn hình 2). "⇲ Gắn lại" hoặc đóng
+  cửa sổ đó để gắn về. Khung xem trước tách ra dùng chung cho cả 2 tab.
+- « / »: thu gọn vùng thành dải dọc hẹp; bấm dải để mở lại.
+- Phím tắt: F6 cây / danh sách, F7 xem trước, F8 tùy chọn, F9 tách / gắn xem trước,
+  Ctrl+R hoặc nút "⟲ Đặt lại bố cục" về mặc định, F11 phóng to cửa sổ, bấm đúp thanh chia = chia đôi.
+- Cửa sổ hẹp (< 1000 px): thanh trên tự xuống dòng, ẩn cột File nguồn, vùng tùy chọn tự thu gọn.
+
+GHI CHÚ
+- Phần mềm mở một Excel chạy ngầm riêng, không đụng tới Excel bạn đang làm việc.
+- Lỗi / cảnh báo xem ở "Nhật ký" (góc dưới phải, hoặc Ctrl+L).

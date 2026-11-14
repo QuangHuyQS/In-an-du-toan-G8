@@ -58,5 +58,3 @@ function Gen([string]$name, [string]$outname = $null, [string]$cls = $null) {
 Gen 'inanDTG8_V6.bas'
 Gen 'modInAnMain.bas'
 Gen 'BuildInAnForm.bas'
-Gen 'frmInDuToan_code.txt'
-Gen 'clsInAnBtn.cls' -cls 'clsInAnBtn'

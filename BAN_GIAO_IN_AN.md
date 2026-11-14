@@ -1,6 +1,6 @@
 # BÀN GIAO – TOOL IN ẤN DỰ TOÁN G8 (đọc file này đầu tiên)
 
-> Cập nhật: **12/11/2026** (phiên 12/11 – tên trên bản in, thứ tự + hướng từng mục file tổng, ô ###; chi tiết NHAT_KY Lần 20–26). Mỗi lần bàn giao: ghi đè file này, giữ đúng tên.
+> Cập nhật: **12/11/2026** (phiên 12/11 – tên trên bản in, thứ tự + hướng từng mục file tổng, ô ###; **bỏ hẳn form VBA cũ**, file .xlsm chỉ còn là bộ máy; chi tiết NHAT_KY Lần 20–27). Mỗi lần bàn giao: ghi đè file này, giữ đúng tên.
 >
 > **Mở phiên mới:** đặt thư mục làm việc `C:\Users\DT-06\Documents\TOOL - RND7\In an du toan\In-an-G8`, gõ:
 > *"Đọc BAN_GIAO_IN_AN.md rồi làm tiếp"*.
@@ -12,8 +12,10 @@ Gốc dự án (gọi tắt **G8**): `C:\Users\DT-06\Documents\TOOL - RND7\In an
 | File bàn giao này | `G8\BAN_GIAO_IN_AN.md` |
 | Nhật ký thay đổi (mới nhất ở cuối) | `G8\NHAT_KY.md` |
 | Mã nguồn VBA (sửa ở đây, KHÔNG sửa `gen\`) | `G8\src\` |
-| Phần mềm desktop V7.1 (C#) | `G8\app\InAnG8.cs`, build `G8\app\build_app.ps1` (ra `app\bin\`, cần `FILE_TONG_IN_G8_V7.1.xlsm` cạnh exe) |
-| Gói gửi người dùng | `G8\dist\In_an_du_toan_G8_V7.1_261112(.zip)` (phần mềm, 12/11/2026), `G8\dist\In_an_du_toan_G8_V6.6_261112(.zip)` (form .bat, cùng lõi); gói V7.1 / V6.6 cũ giữ để đối chiếu |
+| Phần mềm desktop V7.1 (C#) | `G8\app\InAnG8.cs` + `*Ui.cs`, build `G8\app\build_app.ps1` (mặc định ra gốc `G8\`, cạnh `FILE_TONG_IN_G8_V7.1.xlsm`) |
+| Bản build mới nhất | `G8\InAnG8.exe` + `G8\FILE_TONG_IN_G8_V7.1.xlsm` (có trong git; xlsm cũng là file khung khi build) |
+| Gói gửi người dùng | `G8\dist\In_an_du_toan_G8_V7.1_261112(.zip)`, cũng ở GitHub Releases `QuangHuyQS/In-an-du-toan-G8` (tag `v7.1-261112`). Chỉ phát hành gói phần mềm, **không còn gói form .bat V6.x** |
+| Form cũ + gói cũ (lưu trữ, không dùng) | `G8\_LUU_TRU_FORM_CU\` (gitignore): MO_FORM_IN_AN.bat/.vbs, xlsm V6.4–6.6, video HD cũ, dist V6.5–V7.1 cũ |
 | Thiết kế UI/UX (Antigravity – **bắt buộc**, Claude chỉ dựng theo) | `In an du toan\UI_PHAN_MEM_IN_G8\` – `BRIEF*.md` → `THIET_KE*.md`, `mockup*.html`, `XONG*.txt` (bản 1: tổng thể; 2: tab file tổng + luật TB; 3: tách vùng / co giãn) |
 | File thử | `In an du toan\Test\` (5 file: TXL 4 HM, 2. ĐM38 3 HM, 9. ĐM36 3 HM, 10. ĐM38 1 HM, 9.2b 1 HM) |
 | File tổng hợp mẫu | `M:\DUTOAN\2026\01. BT2.MAG\02. OUTPUT\04. DU LIEU\HUY\261103\260724. THDT LT\6. TH Dien\260709.TH DZ TBA - LT.xlsx` (sheet `THC`, 34 link) |
@@ -26,7 +28,7 @@ Gốc dự án (gọi tắt **G8**): `C:\Users\DT-06\Documents\TOOL - RND7\In an
 InAnG8.exe (WinForms, .NET Framework 4.x có sẵn trong Windows)
    │  COM (Excel.Application ẩn, riêng của phần mềm, 1 luồng STA + hàng đợi việc)
    ▼
-FILE_TONG_IN_G8_V7.1.xlsm  ── lõi VBA inanDTG8_V6.bas (+ modInAnMain, BuildInAnForm, frmInDuToan)
+FILE_TONG_IN_G8_V7.1.xlsm  ── lõi VBA inanDTG8_V6.bas (+ modInAnMain); KHÔNG còn form VBA / nút trên sheet
    │  mở file dự toán chỉ đọc → dàn trang → ExportAsFixedFormat PDF
    ▼
 PDF (xem trước: %TEMP%\InAnG8_Preview\..., xóa khi đóng phần mềm ; xuất thật: thư mục người dùng chọn)
@@ -35,7 +37,7 @@ Windows.Data.Pdf (có sẵn Win 10/11) vẽ trang PDF thành ảnh trong khung x
 ```
 
 - Không cần cài gì thêm. **Không dùng WebView2 / NuGet** (máy không có .NET SDK; tải NuGet cần xin phép). PDF hiển thị bằng `Windows.Data.Pdf`, gọi WinRT thủ công (không có `Windows.winmd` gộp → không `await`, chờ `IAsyncOperation.Status` rồi `GetResults()`; đọc ảnh bằng `DataReader`). Không dùng `Windows.UI.Color` / `Windows.Foundation.Size` (cần System.Runtime.WindowsRuntime → lỗi biên dịch).
-- Form cũ (`MO_FORM_IN_AN.bat` → `.vbs` → `MoFormTuBat` → `frmInDuToan`) vẫn dùng được, chung lõi.
+- Form VBA cũ (`frmInDuToan`, `clsInAnBtn`, `MO_FORM_IN_AN.bat`) **đã bỏ từ 12/11/2026**. Sheet 1 của xlsm chỉ ghi "mở bằng InAnG8.exe"; sheet `IN THEO FILE TONG` ẩn hẳn (VeryHidden) nhưng giữ giá trị vì lõi còn đọc C12/C13 (`TongLoadUiOptions`). Macro `MoBangDieuKhien` còn nhưng chỉ báo "form cũ đã ngừng dùng".
 
 ### 1.1 Hàm lõi cho phần mềm ngoài (trong `src\inanDTG8_V6.bas`, chỉ trả String, không ByRef)
 | Hàm | Việc |
@@ -53,10 +55,11 @@ Mã sheet: hệ 1 HM `1 THKP, 2 GTH, 3 ĐGCT, 4 CT, 5 GT, 6 THVT, 7 THXD, 8 TB`;
 
 ### 1.2 Build
 ```bash
-powershell -ExecutionPolicy Bypass -File BUILD_V6.ps1 -KeepForm -Template FILE_TONG_IN_G8_V6.6.xlsm -Out <đường dẫn .xlsm>
-powershell -ExecutionPolicy Bypass -File app/build_app.ps1 -Out <thư mục>
+powershell -ExecutionPolicy Bypass -File BUILD_V6.ps1 -Out "$TEMP\FILE_TONG_IN_G8_V7.1.xlsm"   # khung mặc định = G8\FILE_TONG_IN_G8_V7.1.xlsm; -Out phải khác khung
+cp "$TEMP/FILE_TONG_IN_G8_V7.1.xlsm" .                                                    # chép đè sau khi kiểm
+powershell -ExecutionPolicy Bypass -File app/build_app.ps1                                 # ra G8\InAnG8.exe
 ```
-- `BUILD_V6.ps1` sinh `gen\` (ASCII, chuỗi tiếng Việt → `U("\uXXXX")`) rồi nạp vào xlsm qua COM (cần "Trust access to the VBA project"). **Chú thích (`'`) trong `src\*.bas` phải ASCII thuần.**
+- `BUILD_V6.ps1` chỉ còn chế độ bộ máy: bỏ form cũ nếu khung còn, gọi `BuildInAnForm_Sheet` rồi `BuildInAnForm_Engine`. Nó sinh `gen\` (ASCII, chuỗi tiếng Việt → `U("\uXXXX")`) rồi nạp vào xlsm qua COM (cần "Trust access to the VBA project"). **Chú thích (`'`) trong `src\*.bas` phải ASCII thuần.**
 - `build_app.ps1` dùng `csc.exe` của .NET Framework 4 (C# 5: không `$""`, không `?.`, không `nameof`).
 - Gói 7.0 = `InAnG8.exe` + `FILE_TONG_IN_G8_V7.0.xlsm` + `DOC_TRUOC.txt` cùng thư mục (phần mềm tìm `FILE_TONG_IN_G8_V*.xlsm` cạnh exe, bản số cao nhất, tự gỡ Zone.Identifier).
 
@@ -85,16 +88,16 @@ $tool.Close($false); $xl.Quit()
 1. **Ý kiến người dùng ở tab /btw (chuyển sang 05/11), CHỜ người dùng chọn:**
    a) Khoán thêm cho Antigravity viết luôn code UI: tách UI ra partial class `InAnG8.<Tab>Ui.cs` theo "hợp đồng" hàm/dữ liệu do Claude định; Antigravity làm UI tab, hộp báo cáo dạng bảng, làm đẹp tab 1, icon / hướng dẫn / DOC_TRUOC, soát lệch code UI so với THIET_KE_2/3 + mockup. Claude giữ lõi VBA/COM + chạy thử thật.
    b) Bỏ phụ thuộc .xlsm/macro: **Mức 1 (khuyên)** chuyển lõi VBA (~5.000 dòng) sang C# trong InAnG8.exe, vẫn dùng Excel ẩn qua COM để mở .xls + xuất PDF (bản in y hệt), kiểm bằng so PDF cũ/mới trên `Test\`, làm dần (1 file → nhiều HM → file tổng). **Mức 2** không cần Excel (LibreOffice headless lệch bản in; Aspose/Spire tốn phí) – chưa khuyên.
-2. Form VBA cũ (`frmInDuToan`, gói .bat V6.x) chưa áp luật TB ở lưới HM (`ApplyMasterToRows` vẫn TB → HM đầu); chưa đóng gói lại V6.7.
+2. (Đã đóng) Form VBA cũ bỏ 12/11/2026, không phát hành gói .bat nữa. `src\BuildInAnForm.bas` còn code dựng form cũ (`BuildInAnForm_Run`, `BuildControls`) không ai gọi, xóa được khi rảnh.
 3. Câu hỏi mở của Antigravity (`XONG_2.txt`, `XONG_3.txt`): cache quét file tổng (.g8cache), tùy chọn ghép N HM cho mục "Cả file", tên PDF dài/MAX_PATH. Chưa làm.
 4. Chưa có: hủy quét giữa chừng, xem trước tab 2 có cache theo cấu hình (hiện chỉ giữ PDF của lần xem gần nhất mỗi mục).
 5. Lỗi 1004 `Application.Calculation` khi file ở Protected View: chưa bọc `On Error`.
-6. **Chưa commit git** (src\, app\, NHAT_KY.md, BAN_GIAO). Không đưa `dist\`, `.xlsm`, `video\` lên git nếu không được yêu cầu.
+6. Git: nhánh `main` của fork `QuangHuyQS/In-an-du-toan-G8` (remote `fork`) là bản chính; `origin` (tonghang0111-rgb/In-an-G8) không đẩy. `InAnG8.exe` + `FILE_TONG_IN_G8_V7.1.xlsm` ở gốc có trong git; `dist\`, `_LUU_TRU_FORM_CU\` thì không.
 7. Còn 1 `EXCEL.EXE /automation` sót từ phiên 04/11 (PID 36252) – người dùng tự tắt.
 
 ## 4. Lưu ý làm việc với người dùng
 - Người dùng là kỹ sư dự toán, nói tiếng Việt; muốn kết quả kiểm chứng bằng file thật (thư mục `Test`, file tổng trên ổ M:).
-- Khi sửa lỗi in: tái hiện bằng script trước, xem ảnh trang PDF, rồi mới đóng gói lại **cả V7.0 và V6.6** (cùng lõi).
+- Khi sửa lỗi in: tái hiện bằng script trước, xem ảnh trang PDF, rồi mới đóng gói lại gói phần mềm V7.1 (không còn gói V6.x).
 - Không sửa thư mục `THAM_KHAO\` của brief Antigravity; giao việc cho Antigravity bằng `BRIEF*.md` + chờ `XONG*.txt`.
 - Không dùng sed để sửa script có đường dẫn Windows (mất dấu `\`) và không dùng perl với chuỗi có `$(` (bị nội suy) – dùng Edit / heredoc `'EOF'`.
 - UI/UX bắt buộc qua Antigravity: viết `BRIEF_n.md` (kèm dữ liệu thật, ràng buộc WinForms .NET 4), gửi bằng computer-use vào ô chat Antigravity (project UI_PHAN_MEM_IN_G8), rồi chờ `XONG_n.txt` bằng lệnh nền (không chụp màn hình theo dõi).
